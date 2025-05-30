@@ -4,9 +4,7 @@
 import type { Athkar } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, PlusCircle, MinusCircle, Repeat, Info, Edit3, Trash2, Play, Pause, GripVertical } from 'lucide-react';
-// Progress component is no longer needed for the circular counter
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CheckCircle2, Circle, PlusCircle, MinusCircle, Repeat, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
@@ -40,6 +38,8 @@ export function AthkarItem({
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stableOnIncrementCountRef = useRef(onIncrementCount);
 
+  const [showVirtue, setShowVirtue] = useState(false);
+
   useEffect(() => {
     stableOnIncrementCountRef.current = onIncrementCount;
   }, [onIncrementCount]);
@@ -54,7 +54,6 @@ export function AthkarItem({
         clearInterval(autoCountIntervalRef.current);
         autoCountIntervalRef.current = null;
       }
-      // Ensure auto-counting stops if it was active and the thikr got completed by other means or if readingTime is no longer valid
       if (isAutoCounting && (isFullyCompleted || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
         setIsAutoCounting(false);
       }
@@ -88,9 +87,8 @@ export function AthkarItem({
     }
   }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isFullyCompleted]);
 
-  const circumference = 2 * Math.PI * 15.9155; // SVG circle radius used in viewBox 0 0 36 36
+  const circumference = 2 * Math.PI * 15.9155; 
   const progressPercentage = athkar.count ? (currentCompletedCount / athkar.count) : 0;
-  const strokeDashoffsetValue = circumference * (1 - progressPercentage);
 
 
   return (
@@ -107,18 +105,10 @@ export function AthkarItem({
           </div>
           <div className="flex items-center gap-1">
             {athkar.virtue && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent-foreground h-8 w-8">
-                    <Info size={18} />
-                    <span className="sr-only">عرض فضل الذكر</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent side="left" className="w-80 text-sm p-4 shadow-md" dir="rtl">
-                  <p className="font-semibold mb-2 text-primary">فضل الذكر:</p>
-                  <p>{athkar.virtue}</p>
-                </PopoverContent>
-              </Popover>
+              <Button variant="ghost" size="icon" onClick={() => setShowVirtue(!showVirtue)} className="text-muted-foreground hover:text-accent-foreground h-8 w-8">
+                {showVirtue ? <ChevronUp size={18} /> : <Info size={18} />}
+                <span className="sr-only">{showVirtue ? 'إخفاء فضل الذكر' : 'عرض فضل الذكر'}</span>
+              </Button>
             )}
             <Button variant="ghost" size="icon" onClick={onEdit} className="text-muted-foreground hover:text-blue-500 h-8 w-8">
               <Edit3 size={18} />
@@ -134,9 +124,15 @@ export function AthkarItem({
       </CardHeader>
 
       <CardContent className="pb-4">
-        <p className="text-2xl leading-relaxed text-right font-arabic text-foreground mb-4" lang="ar" dir="rtl">
+        <p className="text-2xl leading-relaxed text-center font-arabic text-foreground mb-4" lang="ar" dir="rtl">
           {athkar.arabic}
         </p>
+
+        {showVirtue && athkar.virtue && (
+          <div className="mb-4 p-3 bg-accent/10 rounded-md border border-accent/30">
+            <p className="text-sm text-accent-foreground/90" dir="rtl">{athkar.virtue}</p>
+          </div>
+        )}
 
         {isCountable ? (
           <div className="space-y-3">
@@ -146,7 +142,6 @@ export function AthkarItem({
             </div>
             
             <div className="flex items-center justify-center gap-3 sm:gap-4 my-4">
-              {/* Decrement Button */}
               <Button
                 variant="outline"
                 size="icon"
@@ -158,7 +153,6 @@ export function AthkarItem({
                 <MinusCircle size={20} />
               </Button>
 
-              {/* Central Circular Progress/Increment Button */}
               <button
                 onClick={handleMainAction}
                 disabled={isFullyCompleted || isAutoCounting}
@@ -167,17 +161,15 @@ export function AthkarItem({
                             ${isFullyCompleted || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
-                  {/* Background track */}
                   <circle
                     className="text-gray-300/50 dark:text-gray-700/50"
                     strokeWidth="3"
                     stroke="currentColor"
                     fill="transparent"
-                    r="15.9155" // (36/2 - 3/2)
+                    r="15.9155" 
                     cx="18"
                     cy="18"
                   />
-                  {/* Progress track */}
                   <circle
                     className="text-green-500 transition-all duration-300 ease-linear"
                     strokeWidth="3"
@@ -188,7 +180,7 @@ export function AthkarItem({
                     r="15.9155"
                     cx="18"
                     cy="18"
-                    transform="rotate(-90 18 18)" // Start from top
+                    transform="rotate(-90 18 18)" 
                   />
                 </svg>
                 <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isFullyCompleted || isAutoCounting ? '' : 'text-primary-foreground'}`}>
@@ -196,7 +188,6 @@ export function AthkarItem({
                 </span>
               </button>
 
-              {/* Auto Count Button */}
               {isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 ? (
                 <Button
                   variant={isAutoCounting ? "destructive" : "outline"}
@@ -209,7 +200,7 @@ export function AthkarItem({
                   {isAutoCounting ? <Pause size={20} /> : <Play size={20} />}
                 </Button>
               ) : (
-                 <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> // Placeholder
+                 <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> 
               )}
             </div>
 

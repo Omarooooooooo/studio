@@ -37,9 +37,6 @@ const LOCAL_STORAGE_KEY = 'athkari_groups';
 
 export default function GroupPage() {
   const router = useRouter();
-  // Directly destructure groupId and assert its type from useParams
-  // useParams returns Readonly<Params> which is Readonly<{[key: string]: string | string[]}>
-  // We expect groupId to be a string.
   const { groupId: rawGroupId } = useParams() as { groupId: string };
   const groupId = rawGroupId;
 
@@ -326,12 +323,9 @@ export default function GroupPage() {
           </Button>
         </div>
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-primary mb-2">
+          <h1 className="text-3xl font-bold text-primary mb-2">
             {group.name}
           </h1>
-          <p className="text-md text-muted-foreground">
-            هنا يمكنك إضافة وإدارة الأذكار الخاصة بمجموعة "{group.name}".
-          </p>
         </div>
       </header>
       
