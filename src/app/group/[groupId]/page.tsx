@@ -324,7 +324,7 @@ export default function GroupPage() {
     });
   }, [updateAthkarInGroup]);
   
-  const handleResetCount = useCallback((athkarId: string) => {
+  const handleResetCount = useCallback((athkarId: string) => { // This function is not used by any UI element anymore.
     updateAthkarInGroup(athkarId, a => ({ ...a, completedCount: 0, completed: false }));
   }, [updateAthkarInGroup]);
 
@@ -359,8 +359,8 @@ export default function GroupPage() {
       
       const updatedAthkarList = prevGroup.athkar.map(a => ({
         ...a,
-        completed: false, // Make all athkar visible
-        // completedCount remains unchanged to preserve log integrity
+        completed: false, 
+        completedCount: 0, 
       }));
 
       const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
@@ -370,7 +370,7 @@ export default function GroupPage() {
     });
     toast({ 
         title: "تمت إعادة التعيين", 
-        description: "تم إظهار جميع الأذكار لهذه الجلسة. سجل التقدم الكلي لم يتأثر." 
+        description: "تم إظهار جميع الأذكار وإعادة تعيين عداداتها لهذه الجلسة. سيعكس سجل التقدم هذا التغيير لهذه المجموعة." 
     });
   }, [toast]);
 
@@ -488,7 +488,7 @@ export default function GroupPage() {
                 onToggleComplete={handleToggleComplete}
                 onIncrementCount={handleIncrementCount}
                 onDecrementCount={handleDecrementCount}
-                onResetCount={handleResetCount}
+                onResetCount={handleResetCount} // This prop is passed but AthkarItem no longer uses it for a button.
                 onEditAthkar={openEditAthkarDialog}
                 onDeleteAthkar={openDeleteAthkarDialog}
                 fontSizeMultiplier={fontSizeMultiplier}
