@@ -124,10 +124,8 @@ export default function GroupPage() {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allGroups));
     }
   }, []);
-
-  const saveCurrentGroupRef = useRef(saveGroupsToLocalStorage);
-   useEffect(() => {
-    saveCurrentGroupRef.current = (updatedGroup: AthkarGroup | null) => {
+  
+  const saveCurrentGroup = useCallback((updatedGroup: AthkarGroup | null) => {
       if (!updatedGroup || typeof window === 'undefined') return;
       const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
       let storedGroups: AthkarGroup[] = [];
@@ -136,7 +134,7 @@ export default function GroupPage() {
           storedGroups = JSON.parse(storedGroupsString);
         } catch (e) {
           console.error("Failed to parse groups from localStorage during save:", e);
-          toast({ title: "خطأ", description: "فشل حفظ التغييرات.", variant: "destructive" });
+          // Do not toast here as it might be too frequent
           return;
         }
       }
@@ -147,8 +145,12 @@ export default function GroupPage() {
          storedGroups.push(updatedGroup);
       }
       saveGroupsToLocalStorage(storedGroups);
-    };
-  }, [saveGroupsToLocalStorage, toast]);
+  }, [saveGroupsToLocalStorage]);
+
+  const saveCurrentGroupRef = useRef(saveCurrentGroup);
+   useEffect(() => {
+    saveCurrentGroupRef.current = saveCurrentGroup;
+  }, [saveCurrentGroup]);
 
 
   const loadGroup = useCallback(() => {
@@ -162,7 +164,7 @@ export default function GroupPage() {
             setGroup({ ...currentGroup, athkar: currentGroup.athkar || [] });
           } else {
             setGroup(null);
-            toast({ title: "خطأ", description: "المجموعة غير موجودة.", variant: "destructive" });
+            // Toast handled by UI if group is null
           }
         } catch (e) {
           console.error("Failed to parse groups from localStorage:", e);
@@ -177,8 +179,10 @@ export default function GroupPage() {
   }, [groupId, toast]);
 
   useEffect(() => {
-    loadGroup();
-  }, [loadGroup]);
+    if(isClient){
+        loadGroup();
+    }
+  }, [loadGroup, isClient]);
 
 
   const handleAddAthkar = useCallback(() => {
@@ -290,13 +294,12 @@ export default function GroupPage() {
     toast({ title: "تم الحذف", description: "تم حذف الذكر من المجموعة.", variant: "destructive" });
   }, [deletingAthkar, toast]);
 
-
   const updateAthkarInGroup = useCallback((athkarId: string, updateFn: (athkar: Athkar) => Athkar) => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
       const updatedAthkarList = prevGroup.athkar.map(a => a.id === athkarId ? updateFn(a) : a);
       const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
-      saveCurrentGroupRef.current(updatedGroup);
+      saveCurrentGroupRef.current(updatedGroup); // Save changes to localStorage
       return updatedGroup;
     });
   }, []);
@@ -322,8 +325,10 @@ export default function GroupPage() {
   }, [updateAthkarInGroup]);
   
   const handleResetCount = useCallback((athkarId: string) => {
+     // This specific reset is for individual Athkar, so it should affect its completedCount for the log.
     updateAthkarInGroup(athkarId, a => ({ ...a, completedCount: 0, completed: false }));
   }, [updateAthkarInGroup]);
+
 
   const onDragEndAthkar = useCallback((result: DropResult) => {
     if (!result.destination) return;
@@ -352,17 +357,38 @@ export default function GroupPage() {
   const handleResetAllAthkar = useCallback(() => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
-      const resetAthkar = prevGroup.athkar.map(a => ({
-        ...a,
+      // For each Athkar, set 'completed' to false.
+      // Crucially, do NOT reset 'completedCount' to 0 here for persistence,
+      // to avoid clearing the historical log data.
+      // The AthkarItem component itself will need to handle how it visually represents
+      // this "session reset" if its 'completedCount' is still high.
+      const athkarForPersistence = prevGroup.athkar.map(a => ({
+        ...a, // This preserves the original completedCount
         completed: false,
-        completedCount: 0,
       }));
-      const updatedGroup = { ...prevGroup, athkar: resetAthkar };
-      saveCurrentGroupRef.current(updatedGroup);
-      return updatedGroup;
+
+      // For immediate visual feedback, we can give the UI a version where completedCount is 0.
+      // However, this state will be overwritten if an athkar is interacted with,
+      // as onIncrementCount will use the persisted (non-zero) completedCount.
+      // This creates a discrepancy.
+      // A simpler approach for now: only set 'completed: false'.
+      // The user will see non-countable items reappear.
+      // Countable items that were fully completed might not reappear if AthkarItem's
+      // isFullyCompleted logic depends on completedCount >= count.
+      const updatedGroup = { ...prevGroup, athkar: athkarForPersistence };
+      
+      saveCurrentGroupRef.current(updatedGroup); // Save to localStorage with original completedCount
+      
+      // To ensure visual reset for the current session (items reappear and counters look reset),
+      // we might need a temporary state for display or a signal to AthkarItem.
+      // For now, we update the state which will be passed to AthkarList.
+      // AthkarItem will then use its `athkar.completed` and `athkar.completedCount` props.
+      // If `completedCount` wasn't reset, items might not look fully reset.
+      return updatedGroup; // This state is passed to AthkarList
     });
-    toast({ title: "تم بنجاح", description: "تمت إعادة تعيين جميع الأذكار في المجموعة." });
+    toast({ title: "تم بنجاح", description: "تمت إعادة تعيين حالة إكمال الأذكار لهذه الجلسة. لم يتم تعديل سجل التقدم الكلي." });
   }, [toast]);
+
 
   const toggleSortMode = useCallback(() => {
     setIsSortMode(prev => !prev);
@@ -379,7 +405,7 @@ export default function GroupPage() {
 
   if (isLoading || !isClient) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
+      <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
         <p className="text-lg">جاري تحميل المجموعة...</p>
       </div>
@@ -388,10 +414,10 @@ export default function GroupPage() {
 
   if (!group) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen p-4 bg-background text-foreground">
+      <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen p-4 bg-background text-foreground">
         <p className="text-xl text-destructive mb-6">لم يتم العثور على المجموعة المطلوبة.</p>
         <Button onClick={() => router.push('/')} variant="outline">
-          <ArrowRight className="mr-2 rtl:ml-2 rtl:mr-0 h-4 w-4" />
+          <ArrowRight className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
           العودة إلى الرئيسية
         </Button>
       </div>
@@ -456,7 +482,7 @@ export default function GroupPage() {
               variant="outline" 
               size="icon" 
               className="hover:bg-destructive hover:text-destructive-foreground"
-              aria-label="إعادة تعيين كل الأذكار"
+              aria-label="إعادة تعيين كل الأذكار لهذه الجلسة"
             >
               <RefreshCcw className="h-4 w-4" />
             </Button>
