@@ -13,6 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger, // Added DialogTrigger
   DialogClose,
 } from '@/components/ui/dialog';
 import {
@@ -98,12 +99,7 @@ export default function HomePage() {
 
   const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
-      // toast({
-      //   title: "خطأ",
-      //   description: "الرجاء إدخال اسم للمجموعة.",
-      //   variant: "destructive",
-      // });
-      alert("الرجاء إدخال اسم للمجموعة."); // Fallback if toasts are essential for validation
+      // alert("الرجاء إدخال اسم للمجموعة."); // Fallback if toasts are essential for validation
       return;
     }
     const newGroup: AthkarGroup = {
@@ -114,10 +110,6 @@ export default function HomePage() {
     setGroups((prevGroups) => [...prevGroups, newGroup]);
     setNewGroupName('');
     setIsAddDialogOpen(false);
-    // toast({
-    //   title: "تم بنجاح",
-    //   description: `تمت إضافة مجموعة "${newGroup.name}".`,
-    // });
   }, [newGroupName]);
 
   const openEditDialog = useCallback((group: AthkarGroup) => {
@@ -128,12 +120,7 @@ export default function HomePage() {
 
   const handleEditGroup = useCallback(() => {
     if (!editingGroup || !editedGroupName.trim()) {
-      // toast({
-      //   title: "خطأ",
-      //   description: "الرجاء إدخال اسم صحيح للمجموعة.",
-      //   variant: "destructive",
-      // });
-      alert("الرجاء إدخال اسم صحيح للمجموعة."); // Fallback
+      // alert("الرجاء إدخال اسم صحيح للمجموعة."); // Fallback
       return;
     }
     setGroups(prevGroups => 
@@ -141,10 +128,6 @@ export default function HomePage() {
     );
     setIsEditDialogOpen(false);
     setEditingGroup(null);
-    // toast({
-    //   title: "تم التعديل",
-    //   description: `تم تغيير اسم المجموعة إلى "${editedGroupName.trim()}".`,
-    // });
   }, [editingGroup, editedGroupName]);
 
   const openDeleteDialog = useCallback((group: AthkarGroup) => {
@@ -157,11 +140,6 @@ export default function HomePage() {
     const groupName = deletingGroup.name;
     setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
     setDeletingGroup(null); 
-    // toast({
-    //   title: "تم الحذف",
-    //   description: `تم حذف مجموعة "${groupName}".`,
-    //   variant: "destructive",
-    // });
   }, [deletingGroup]);
 
   const onDragEndGroup = useCallback((result: DropResult) => {
@@ -233,7 +211,7 @@ export default function HomePage() {
                           <Card
                             ref={providedDraggable.innerRef}
                             {...providedDraggable.draggableProps}
-                            className="shadow-md hover:shadow-lg" // Removed transition-shadow
+                            className="shadow-md hover:shadow-lg"
                           >
                             <CardContent className="p-4 flex items-center justify-between space-x-2 rtl:space-x-reverse">
                               <div {...providedDraggable.dragHandleProps} className="p-2 cursor-grab text-muted-foreground hover:text-foreground">
@@ -376,3 +354,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
