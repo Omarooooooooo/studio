@@ -33,7 +33,12 @@ export default function RootLayout({
   `;
 
   return (
-    <html lang="ar" dir="rtl" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html 
+      lang="ar" 
+      dir="rtl" 
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning={true}
+    >
       <head>
         {/* You can add other head elements here if needed */}
       </head>
