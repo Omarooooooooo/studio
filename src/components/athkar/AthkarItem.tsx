@@ -5,7 +5,7 @@ import type { Athkar } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, PlusCircle, MinusCircle, Repeat, Info, Edit3, Trash2, Play, Pause, GripVertical } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+// Progress component is no longer needed for the circular counter
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -54,7 +54,8 @@ export function AthkarItem({
         clearInterval(autoCountIntervalRef.current);
         autoCountIntervalRef.current = null;
       }
-      if (isFullyCompleted && isAutoCounting) { // If it stopped because it's fully completed
+      // Ensure auto-counting stops if it was active and the thikr got completed by other means or if readingTime is no longer valid
+      if (isAutoCounting && (isFullyCompleted || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
         setIsAutoCounting(false);
       }
     }
@@ -68,7 +69,7 @@ export function AthkarItem({
 
   const handleMainAction = useCallback(() => {
     if (isCountable) {
-      if (currentCompletedCount < athkar.count!) { // athkar.count is defined due to isCountable
+      if (currentCompletedCount < athkar.count!) { 
         onIncrementCount(athkar.id);
       }
     } else {
@@ -86,6 +87,10 @@ export function AthkarItem({
       }
     }
   }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isFullyCompleted]);
+
+  const circumference = 2 * Math.PI * 15.9155; // SVG circle radius used in viewBox 0 0 36 36
+  const progressPercentage = athkar.count ? (currentCompletedCount / athkar.count) : 0;
+  const strokeDashoffsetValue = circumference * (1 - progressPercentage);
 
 
   return (
@@ -137,54 +142,84 @@ export function AthkarItem({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>التكرار: {currentCompletedCount} / {athkar.count}</span>
-              {isFullyCompleted && <Badge variant="default" className="bg-green-500 text-white">مكتمل</Badge>}
+              {isFullyCompleted && <Badge variant="default" className="bg-green-600 text-white">مكتمل</Badge>}
             </div>
-            <Progress 
-              value={athkar.count ? (currentCompletedCount / athkar.count) * 100 : 0} 
-              className="h-3 [&>div]:bg-green-500" 
-              aria-label={`تقدم الذكر: ${currentCompletedCount} من ${athkar.count}`}
-            />
-            <div className="flex gap-2 justify-center items-center">
+            
+            <div className="flex items-center justify-center gap-3 sm:gap-4 my-4">
+              {/* Decrement Button */}
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
                 onClick={() => onDecrementCount(athkar.id)}
                 disabled={currentCompletedCount === 0 || isAutoCounting}
                 aria-label="إنقاص العد"
-                className="flex-1"
+                className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
               >
-                <MinusCircle size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
-                إنقاص
+                <MinusCircle size={20} />
               </Button>
-              <Button
-                variant="default"
-                size="sm"
+
+              {/* Central Circular Progress/Increment Button */}
+              <button
                 onClick={handleMainAction}
                 disabled={isFullyCompleted || isAutoCounting}
-                aria-label="زيادة العد"
-                className="flex-1 bg-primary hover:bg-primary/90"
+                aria-label={isFullyCompleted ? "مكتمل" : "زيادة العد"}
+                className={`relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                            ${isFullyCompleted || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
               >
-                <PlusCircle size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
-                {isFullyCompleted ? "مكتمل" : "زيادة"}
-              </Button>
-              {athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 && (
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
+                  {/* Background track */}
+                  <circle
+                    className="text-gray-300/50 dark:text-gray-700/50"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    fill="transparent"
+                    r="15.9155" // (36/2 - 3/2)
+                    cx="18"
+                    cy="18"
+                  />
+                  {/* Progress track */}
+                  <circle
+                    className="text-green-500 transition-all duration-300 ease-linear"
+                    strokeWidth="3"
+                    strokeDasharray={`${progressPercentage * circumference}, ${circumference}`}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="transparent"
+                    r="15.9155"
+                    cx="18"
+                    cy="18"
+                    transform="rotate(-90 18 18)" // Start from top
+                  />
+                </svg>
+                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isFullyCompleted || isAutoCounting ? '' : 'text-primary-foreground'}`}>
+                  {currentCompletedCount}
+                </span>
+              </button>
+
+              {/* Auto Count Button */}
+              {isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 ? (
                 <Button
                   variant={isAutoCounting ? "destructive" : "outline"}
                   size="icon"
                   onClick={handleToggleAutoCount}
-                   disabled={(!isAutoCounting && (isFullyCompleted || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
-                  className="h-9 w-9"
+                  disabled={(!isAutoCounting && (isFullyCompleted || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
+                  className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
                   aria-label={isAutoCounting ? "إيقاف التعداد التلقائي" : "بدء التعداد التلقائي"}
                 >
-                  {isAutoCounting ? <Pause size={16} /> : <Play size={16} />}
+                  {isAutoCounting ? <Pause size={20} /> : <Play size={20} />}
                 </Button>
+              ) : (
+                 <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> // Placeholder
               )}
             </div>
+
             {isFullyCompleted && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onResetCount(athkar.id)}
+                onClick={() => {
+                  if (!isAutoCounting) onResetCount(athkar.id);
+                }}
                 className="w-full text-xs text-muted-foreground hover:text-primary mt-2"
                 aria-label="إعادة تعيين العد"
                 disabled={isAutoCounting}
