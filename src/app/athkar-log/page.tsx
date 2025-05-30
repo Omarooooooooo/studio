@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight, History, ListOrdered, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; // Unified key
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 
 interface LogItem {
   arabic: string;
@@ -38,12 +38,12 @@ export default function AthkarLogPage() {
               arabic,
               totalCompletedRepetitions,
             }))
-            .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions); 
+            .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions);
           setLogEntries(entries);
           console.log("ATHKAR_LOG_PAGE: Loaded and processed log data:", entries);
         } else {
           setLogEntries([]);
-           console.log("ATHKAR_LOG_PAGE: No log data found in localStorage.");
+          console.log("ATHKAR_LOG_PAGE: No log data found in localStorage.");
         }
       } catch (error) {
         console.error("Failed to load or parse Athkar log data:", error);
@@ -92,12 +92,12 @@ export default function AthkarLogPage() {
               {logEntries.map((entry) => (
                 <Card key={entry.arabic} className="shadow-sm">
                   <CardContent className="p-4 flex justify-between items-center">
+                    <span className="text-lg font-semibold text-primary mr-4 rtl:ml-4 rtl:mr-0">
+                      {entry.totalCompletedRepetitions}
+                    </span>
                     <p className="text-md font-arabic flex-grow text-right" lang="ar" dir="rtl">
                       {entry.arabic}
                     </p>
-                    <span className="text-lg font-semibold text-primary ml-4 rtl:mr-4 rtl:ml-0">
-                      {entry.totalCompletedRepetitions}
-                    </span>
                   </CardContent>
                 </Card>
               ))}
@@ -108,5 +108,3 @@ export default function AthkarLogPage() {
     </div>
   );
 }
-
-    
