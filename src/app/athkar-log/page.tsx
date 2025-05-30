@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight, History, ListOrdered, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; // Unified key
 
 interface LogItem {
   arabic: string;
@@ -95,10 +95,9 @@ export default function AthkarLogPage() {
                     <p className="text-md font-arabic flex-grow text-right" lang="ar" dir="rtl">
                       {entry.arabic}
                     </p>
-                    <div className="text-left flex-shrink-0 ml-4 rtl:mr-4 rtl:ml-0">
-                      <span className="text-lg font-semibold text-primary">{entry.totalCompletedRepetitions}</span>
-                      <p className="text-xs text-muted-foreground">مرات التكرار</p>
-                    </div>
+                    <span className="text-lg font-semibold text-primary ml-4 rtl:mr-4 rtl:ml-0">
+                      {entry.totalCompletedRepetitions}
+                    </span>
                   </CardContent>
                 </Card>
               ))}
@@ -109,3 +108,5 @@ export default function AthkarLogPage() {
     </div>
   );
 }
+
+    

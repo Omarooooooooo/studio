@@ -28,13 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff, GripVertical, History, ScrollText } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff, GripVertical } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; // Unified key
 const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
 const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
@@ -151,6 +151,7 @@ export default function GroupPage() {
     const storedGroups = getStoredGroups();
     const groupToSave: AthkarGroup = {
       ...updatedGroup,
+      // Ensure we only save the StoredAthkar structure, not session-specific fields
       athkar: updatedGroup.athkar.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
     };
     const groupIndex = storedGroups.findIndex(g => g.id === groupToSave.id);
@@ -171,8 +172,8 @@ export default function GroupPage() {
       if (currentStoredGroup) {
         const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
           ...thikr,
-          sessionProgress: 0,
-          isSessionHidden: false,
+          sessionProgress: 0, // Initialize session progress
+          isSessionHidden: false, // Initialize session hidden state
         }));
         setGroup({ ...currentStoredGroup, athkar: athkarInSession });
       } else {
@@ -190,7 +191,7 @@ export default function GroupPage() {
 
   const updateSeparateAthkarLog = useCallback((athkarArabic: string, repetitionsToAdd: number) => {
     if (typeof window === 'undefined' || repetitionsToAdd <= 0) return;
-    console.log(`LOG_ACTION: Updating separate log for "${athkarArabic}" by ${repetitionsToAdd}`);
+    console.log(`LOG_UPDATE: Attempting to update separate log for "${athkarArabic}" by ${repetitionsToAdd}`);
     try {
       const logString = localStorage.getItem(ATHKAR_LOG_STORAGE_KEY);
       let logData: AthkarLogStore = {};
@@ -204,7 +205,7 @@ export default function GroupPage() {
       }
       logData[athkarArabic] = (logData[athkarArabic] || 0) + repetitionsToAdd;
       localStorage.setItem(ATHKAR_LOG_STORAGE_KEY, JSON.stringify(logData));
-      console.log(`LOG_ACTION: Successfully updated log. New total for "${athkarArabic}": ${logData[athkarArabic]}`);
+      console.log(`LOG_UPDATE: Successfully updated log. New total for "${athkarArabic}": ${logData[athkarArabic]}`);
     } catch (e) {
       console.error("Failed to update separate Athkar log in localStorage:", e);
     }
@@ -220,6 +221,7 @@ export default function GroupPage() {
     if (newAthkarCount.trim() && (isNaN(count) || count < 0)) return;
     if (newAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) return;
 
+    // This is the structure stored in the group's athkar list
     const newStoredAthkar: StoredAthkar = {
       id: Date.now().toString(),
       arabic: newAthkarArabic.trim(),
@@ -272,7 +274,7 @@ export default function GroupPage() {
       const updatedAthkarList = prevGroup.athkar.map(a =>
         a.id === editingAthkar.id
         ? {
-            ...a, 
+            ...a, // Keep sessionProgress and isSessionHidden
             arabic: editedAthkarArabic.trim(),
             virtue: editedAthkarVirtue.trim() || undefined,
             count: editedAthkarCount.trim() ? count : undefined,
@@ -281,7 +283,7 @@ export default function GroupPage() {
         : a
       );
       const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
-      saveCurrentGroupStructureRef.current(updatedGroup);
+      saveCurrentGroupStructureRef.current(updatedGroup); // Save the structure change
       return updatedGroup;
     });
 
@@ -308,46 +310,49 @@ export default function GroupPage() {
 
  const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
-        if (!prevGroup) return null;
+      if (!prevGroup) return null;
 
-        let cumulativeAmountToAdd = 0;
-        let completedAthkarArabic: string | undefined;
+      let needsLogUpdate = false;
+      let logAmount = 0;
+      let logArabic = "";
 
-        const athkarList = prevGroup.athkar.map(thikr => {
-            if (thikr.id === athkarId) {
-                const oldSessionProgress = thikr.sessionProgress;
-                const wasSessionHidden = thikr.isSessionHidden; // State before this increment
-                const targetCount = thikr.count || 1;
+      const updatedAthkarList = prevGroup.athkar.map(thikr => {
+        if (thikr.id === athkarId) {
+          const targetCount = thikr.count || 1;
+          const oldSessionProgress = thikr.sessionProgress;
+          const oldIsSessionHidden = thikr.isSessionHidden;
 
-                if (wasSessionHidden) { // Already completed and hidden in this session
-                    console.log(`INC_HANDLER: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) already hidden in this session. No change.`);
-                    return thikr; // No change to this thikr
-                }
-
-                const newSessionProgress = oldSessionProgress + 1;
-                let newIsSessionHidden = false;
-
-                // Check if this increment completes the thikr for the first time in this session
-                if (!wasSessionHidden && newSessionProgress >= targetCount) {
-                    newIsSessionHidden = true;
-                    cumulativeAmountToAdd = targetCount;
-                    completedAthkarArabic = thikr.arabic;
-                    console.log(`INC_HANDLER: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) MET COMPLETION. cumulativeAmountToAdd = ${cumulativeAmountToAdd}`);
-                }
-                
-                const displaySessionProgress = Math.min(newSessionProgress, targetCount);
-                return { ...thikr, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
-            }
+          if (oldIsSessionHidden) { // Already completed and hidden in this session, no change to progress or log
+            console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) already hidden this session. No change.`);
             return thikr;
-        });
+          }
 
-        if (cumulativeAmountToAdd > 0 && completedAthkarArabic) {
-            console.log(`INC_HANDLER: Calling updateSeparateAthkarLog for ${completedAthkarArabic} with amount: ${cumulativeAmountToAdd}`);
-            updateSeparateAthkarLog(completedAthkarArabic, cumulativeAmountToAdd);
+          const newSessionProgress = Math.min(oldSessionProgress + 1, targetCount);
+          let newIsSessionHidden = oldIsSessionHidden; // Default to old, change if completed
+
+          // Check if this increment completes the thikr FOR THE FIRST TIME in this session
+          if (!oldIsSessionHidden && newSessionProgress >= targetCount) {
+            newIsSessionHidden = true; // Mark as hidden for this session
+            needsLogUpdate = true;    // Flag that the permanent log needs updating
+            logAmount = targetCount;  // The amount to add to the permanent log is the full cycle count
+            logArabic = thikr.arabic;
+            console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) MET COMPLETION in session. Log Amount: ${logAmount}`);
+          }
+          
+          return { ...thikr, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHidden };
         }
-        return { ...prevGroup, athkar: athkarList };
+        return thikr;
+      });
+
+      // Call log update outside the map, only if flagged
+      if (needsLogUpdate && logArabic) {
+        console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for "${logArabic}" with amount: ${logAmount}`);
+        updateSeparateAthkarLog(logArabic, logAmount);
+      }
+
+      return { ...prevGroup, athkar: updatedAthkarList };
     });
-}, [updateSeparateAthkarLog]);
+  }, [updateSeparateAthkarLog]);
 
 
   const handleDecrementCount = useCallback((athkarId: string) => {
@@ -360,10 +365,11 @@ export default function GroupPage() {
           const targetCount = a.count || 1;
           let newIsSessionHidden = a.isSessionHidden;
 
-          // If it was hidden (completed) and now progress is less than target, unhide it
+          // If it was hidden (completed) and now progress is less than target, unhide it for the session
           if (a.isSessionHidden && newSessionProgress < targetCount) {
             newIsSessionHidden = false;
           }
+          // Note: Decrementing does not affect the permanent log.
           return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHidden };
         }
         return a;
@@ -375,18 +381,22 @@ export default function GroupPage() {
   const handleToggleComplete = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
         if (!prevGroup) return null;
-        let amountToLog = 0;
-        let completedAthkarArabic : string | undefined;
+        
+        let needsLogUpdate = false;
+        let logAmount = 0;
+        let logArabic = "";
 
         const updatedAthkarList = prevGroup.athkar.map(thikr => {
             if (thikr.id === athkarId && (!thikr.count || thikr.count <= 1)) { // Only for toggleable (count 1 or undefined)
-                const wasSessionHidden = thikr.isSessionHidden;
-                const newIsSessionHidden = !wasSessionHidden;
+                const oldIsSessionHidden = thikr.isSessionHidden;
+                const newIsSessionHidden = !oldIsSessionHidden; // Toggle the session hidden state
 
-                if (newIsSessionHidden && !wasSessionHidden) { // Log only if transitioning to completed/hidden
-                    amountToLog = 1;
-                    completedAthkarArabic = thikr.arabic;
-                    console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) (toggleable) COMPLETED. Will log: ${amountToLog}`);
+                // Log only if transitioning from not hidden to hidden (i.e., just completed in this session)
+                if (!oldIsSessionHidden && newIsSessionHidden) {
+                    needsLogUpdate = true;
+                    logAmount = 1; // For toggleable, one completion cycle is 1
+                    logArabic = thikr.arabic;
+                    console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) (toggleable) COMPLETED in session. Log Amount: ${logAmount}`);
                 }
                  return {
                     ...thikr,
@@ -397,9 +407,9 @@ export default function GroupPage() {
             return thikr;
         });
 
-        if (amountToLog > 0 && completedAthkarArabic) {
-            console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for ${completedAthkarArabic} with amount: ${amountToLog}`);
-            updateSeparateAthkarLog(completedAthkarArabic, amountToLog);
+        if (needsLogUpdate && logArabic) {
+            console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for "${logArabic}" with amount: ${logAmount}`);
+            updateSeparateAthkarLog(logArabic, logAmount);
         }
         return { ...prevGroup, athkar: updatedAthkarList };
     });
@@ -413,6 +423,7 @@ export default function GroupPage() {
         sessionProgress: 0,
         isSessionHidden: false,
       }));
+      // This only resets the current session's view. It does NOT affect the permanent log.
       console.log("SESSION_RESET: All Athkar in current group session reset. Separate log is NOT affected.");
       return { ...prevGroup, athkar: updatedAthkarList };
     });
