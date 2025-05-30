@@ -19,12 +19,13 @@ interface AthkarItemProps {
   onEdit: () => void;
   onDelete: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
-  draggableProps?: DraggableProvidedDraggableProps; // For the root element
+  draggableProps?: DraggableProvidedDraggableProps;
   fontSizeMultiplier: number;
   isSortMode: boolean;
   className?: string;
 }
 
+// Removed React.memo for troubleshooting drag handle
 export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
   athkar,
   onToggleComplete,
@@ -40,7 +41,6 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
 }, ref) => {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 1;
   const currentSessionProgress = athkar.sessionProgress || 0;
-  // isSessionHidden directly from props is used for animation control
   
   const [isAutoCounting, setIsAutoCounting] = useState(false);
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -64,7 +64,6 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
         clearInterval(autoCountIntervalRef.current);
         autoCountIntervalRef.current = null;
       }
-      // Ensure auto-counting stops if item becomes hidden or conditions change
       if (isAutoCounting && (athkar.isSessionHidden || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
         setIsAutoCounting(false);
       }
@@ -79,11 +78,11 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
 
   const handleMainAction = useCallback(() => {
     if (isCountable) {
-      if (!athkar.isSessionHidden) { // Prevent action if session hidden (already completed)
+      if (!athkar.isSessionHidden) { 
         onIncrementCount(athkar.id);
       }
     } else {
-      onToggleComplete(athkar.id); // Toggle completion state
+      onToggleComplete(athkar.id); 
     }
   }, [isCountable, athkar.isSessionHidden, athkar.id, onIncrementCount, onToggleComplete]);
 
@@ -92,7 +91,7 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
     if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       if (isAutoCounting) {
         setIsAutoCounting(false);
-      } else if (!athkar.isSessionHidden) { // Only start if not session hidden
+      } else if (!athkar.isSessionHidden) { 
         setIsAutoCounting(true);
       }
     }
@@ -108,16 +107,16 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
   if (isSortMode) {
     return (
       <div
-        ref={ref}
-        {...draggableProps}
+        ref={ref} // Applied here
+        {...draggableProps} // Applied here
         className={cn(
           "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
-          athkar.isSessionHidden ? 'opacity-60' : '', // Keep visible but dimmed in sort mode
+          athkar.isSessionHidden ? 'opacity-60' : '', 
           className
         )}
       >
         <div
-          {...(dragHandleProps || {})}
+          {...dragHandleProps} // Applied here
           className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
           aria-label="اسحب لترتيب الذكر"
         >
@@ -139,35 +138,33 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
     );
   }
 
-  // Normal display mode
+  // Normal display mode (isSortMode is false)
   return (
     <div 
-      ref={ref} 
-      {...draggableProps} 
+      ref={ref} // Applied here
+      {...draggableProps} // Applied here
       className={cn(
-        "transition-all duration-300 ease-in-out overflow-hidden", // Wrapper for collapse animation
+        "transition-all duration-300 ease-in-out overflow-hidden",
         athkar.isSessionHidden 
-          ? "max-h-0 opacity-0" 
-          : "max-h-[1000px] opacity-100", // Adjust max-h as needed, large enough for content
+          ? "max-h-0 opacity-0 !py-0 !border-opacity-0" 
+          : "max-h-[1000px] opacity-100", 
         className
       )}
     >
       <Card className={cn(
-          "w-full shadow-lg hover:shadow-xl", // Removed transition from here, handled by wrapper
-          // No 'hidden' or opacity/max-h here, handled by the wrapper div
+          "w-full shadow-md hover:shadow-lg transition-shadow duration-200 ease-out",
           'bg-card' 
         )}
       >
         <CardHeader className="pb-3 pt-3">
           <div className="flex justify-between items-start">
             <div
-              {...(dragHandleProps || {})}
+              {...dragHandleProps} // Applied here
               className={cn(
                 "p-1 text-muted-foreground hover:text-foreground",
-                isSortMode ? "cursor-grab" : "cursor-default opacity-50", // Make it clear it's not active for dragging
-                 isSortMode ? "" : "pointer-events-none" // Disable pointer events if not sort mode
+                 "cursor-grab" 
               )}
-              aria-label={isSortMode ? "اسحب لترتيب الذكر" : "مقبض الترتيب (غير نشط)"}
+              aria-label={"اسحب لترتيب الذكر"}
             >
               <GripVertical size={20} />
             </div>
@@ -276,7 +273,7 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
                     {isAutoCounting ? <Pause size={20} /> : <Play size={20} />}
                   </Button>
                 ) : (
-                   <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> // Placeholder for alignment
+                   <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> 
                 )}
               </div>
             </div>
@@ -296,7 +293,7 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
             </Button>
           )}
         </CardContent>
-        {(!isSortMode && (athkar.count || athkar.readingTimeSeconds)) && (
+        {(athkar.count || athkar.readingTimeSeconds) && (
            <CardFooter className={cn("text-xs text-muted-foreground pt-2 pb-3 flex justify-between transition-all duration-300 ease-in-out", athkar.isSessionHidden ? "!p-0" : "")}>
               {athkar.count && athkar.count > 0 && (
                 <p className="rtl:text-right">التكرار المطلوب: {athkar.count}</p>
@@ -313,3 +310,4 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
 });
 
 AthkarItem.displayName = 'AthkarItem';
+    
