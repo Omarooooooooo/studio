@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
@@ -45,6 +45,7 @@ export default function GroupPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
+  const [isSortMode, setIsSortMode] = useState(false);
 
 
   // Add Athkar Dialog State
@@ -315,6 +316,10 @@ export default function GroupPage() {
     toast({ title: "تم بنجاح", description: "تمت إعادة تعيين جميع الأذكار في المجموعة." });
   }, [toast]);
 
+  const toggleSortMode = useCallback(() => {
+    setIsSortMode(prev => !prev);
+  }, []);
+
 
   if (isLoading || !isClient) {
     return (
@@ -352,9 +357,23 @@ export default function GroupPage() {
             <Button onClick={handleIncrementFontSize} variant="outline" size="icon" aria-label="تكبير الخط">
               <Plus className="h-4 w-4" />
             </Button>
-            <Button onClick={handleResetAllAthkar} variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground">
-              <RefreshCcw className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-              إعادة تعيين الكل
+            <Button 
+              onClick={toggleSortMode} 
+              variant="outline" 
+              size="icon" 
+              aria-label={isSortMode ? "الخروج من وضع الترتيب" : "الدخول إلى وضع الترتيب"}
+              className={isSortMode ? "bg-accent text-accent-foreground" : ""}
+            >
+              <ListFilter className="h-4 w-4" />
+            </Button>
+            <Button 
+              onClick={handleResetAllAthkar} 
+              variant="outline" 
+              size="icon" 
+              className="hover:bg-destructive hover:text-destructive-foreground"
+              aria-label="إعادة تعيين كل الأذكار"
+            >
+              <RefreshCcw className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -377,6 +396,7 @@ export default function GroupPage() {
                 onEditAthkar={openEditAthkarDialog}
                 onDeleteAthkar={openDeleteAthkarDialog}
                 fontSizeMultiplier={fontSizeMultiplier}
+                isSortMode={isSortMode}
             />
           </main>
         </DragDropContext>
@@ -557,3 +577,5 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    

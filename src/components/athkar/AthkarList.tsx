@@ -14,6 +14,7 @@ interface AthkarListProps {
   onEditAthkar: (athkar: Athkar) => void;
   onDeleteAthkar: (athkar: Athkar) => void;
   fontSizeMultiplier: number;
+  isSortMode: boolean;
 }
 
 export function AthkarList({ 
@@ -24,7 +25,8 @@ export function AthkarList({
   onResetCount,
   onEditAthkar,
   onDeleteAthkar,
-  fontSizeMultiplier
+  fontSizeMultiplier,
+  isSortMode
 }: AthkarListProps) {
   if (!athkarList || athkarList.length === 0) {
     return (
@@ -42,7 +44,7 @@ export function AthkarList({
     <Droppable droppableId="athkarDroppable" isDropDisabled={false}>
       {(provided) => (
         <div 
-          className="space-y-6"
+          className={`space-y-${isSortMode ? '2' : '6'}`} // Smaller gap in sort mode
           {...provided.droppableProps}
           ref={provided.innerRef}
         >
@@ -63,6 +65,7 @@ export function AthkarList({
                     onDelete={() => onDeleteAthkar(thikr)}
                     dragHandleProps={providedDraggable.dragHandleProps}
                     fontSizeMultiplier={fontSizeMultiplier}
+                    isSortMode={isSortMode}
                   />
                 </div>
               )}
@@ -74,3 +77,5 @@ export function AthkarList({
     </Droppable>
   );
 }
+
+    

@@ -19,6 +19,7 @@ interface AthkarItemProps {
   onDelete: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
   fontSizeMultiplier: number;
+  isSortMode: boolean;
 }
 
 export function AthkarItem({
@@ -30,7 +31,8 @@ export function AthkarItem({
   onEdit,
   onDelete,
   dragHandleProps,
-  fontSizeMultiplier
+  fontSizeMultiplier,
+  isSortMode
 }: AthkarItemProps) {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 0;
   const currentCompletedCount = athkar.completedCount ?? 0;
@@ -57,7 +59,7 @@ export function AthkarItem({
         autoCountIntervalRef.current = null;
       }
       if (isAutoCounting && (isFullyCompleted || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
-        setIsAutoCounting(false);
+        setIsAutoCounting(false); // Ensure auto-counting stops if conditions no longer met
       }
     }
     return () => {
@@ -83,7 +85,7 @@ export function AthkarItem({
     if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       if (isAutoCounting) {
         setIsAutoCounting(false);
-      } else if (!isFullyCompleted) {
+      } else if (!isFullyCompleted) { // Only start if not fully completed
         setIsAutoCounting(true);
       }
     }
@@ -92,12 +94,36 @@ export function AthkarItem({
   const circumference = 2 * Math.PI * 15.9155; 
   const progressPercentage = athkar.count ? (currentCompletedCount / athkar.count) : 0;
 
-  // Base font size for Arabic text in rem (e.g., text-2xl is 1.5rem)
   const baseFontSizeRem = 1.5; 
-  const baseLineHeight = 1.625; // From leading-relaxed, unitless
+  const baseLineHeight = 1.625; 
+
+  if (isSortMode) {
+    return (
+      <Card 
+        className={`w-full shadow-sm bg-card flex items-center p-3 rounded-md transition-opacity duration-300 ${isFullyCompleted ? 'opacity-60' : 'opacity-100'}`}
+      >
+        {dragHandleProps && (
+          <div {...dragHandleProps} className="p-1 cursor-grab text-muted-foreground hover:text-foreground mr-2 rtl:ml-2 rtl:mr-0">
+            <GripVertical size={20} />
+          </div>
+        )}
+        <p 
+          className="font-arabic text-foreground truncate flex-grow" 
+          lang="ar" 
+          dir="rtl"
+          style={{ 
+            fontSize: `${baseFontSizeRem * fontSizeMultiplier * 0.75}rem`, // Adjusted for sort mode
+            lineHeight: `1.5` 
+          }}
+        >
+          {athkar.arabic}
+        </p>
+      </Card>
+    );
+  }
 
   return (
-    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted ? 'bg-primary/10 border-primary/50 hidden' : 'bg-card'}`}>
+    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted ? 'hidden' : 'bg-card'}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-center">
@@ -135,7 +161,7 @@ export function AthkarItem({
           dir="rtl"
           style={{ 
             fontSize: `${baseFontSizeRem * fontSizeMultiplier}rem`,
-            lineHeight: `${baseLineHeight}` // Unitless line height will be relative to the current font size
+            lineHeight: `${baseLineHeight}`
           }}
         >
           {athkar.arabic}
@@ -146,7 +172,7 @@ export function AthkarItem({
             <p 
               className="text-accent-foreground/90 text-center" 
               dir="rtl"
-              style={{ fontSize: `${0.875 * fontSizeMultiplier}rem` }} // Smaller font for virtue
+              style={{ fontSize: `${0.875 * fontSizeMultiplier}rem` }}
             >
               {athkar.virtue}
             </p>
@@ -157,7 +183,6 @@ export function AthkarItem({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>التكرار: {currentCompletedCount} / {athkar.count}</span>
-              {/* Badge for completed is less relevant if card is hidden */}
             </div>
             
             <div className="flex items-center justify-center gap-3 sm:gap-4 my-4">
@@ -181,7 +206,7 @@ export function AthkarItem({
               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
                   <circle
-                    className="text-gray-300/50 dark:text-gray-700/50"
+                    className="text-border" // Use theme border color
                     strokeWidth="3"
                     stroke="currentColor"
                     fill="transparent"
@@ -190,7 +215,7 @@ export function AthkarItem({
                     cy="18"
                   />
                   <circle
-                    className="text-green-500 transition-all duration-300 ease-linear"
+                    className="text-primary transition-all duration-300 ease-linear" // Use theme primary color
                     strokeWidth="3"
                     strokeDasharray={`${progressPercentage * circumference}, ${circumference}`}
                     strokeLinecap="round"
@@ -202,7 +227,7 @@ export function AthkarItem({
                     transform="rotate(-90 18 18)" 
                   />
                 </svg>
-                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isFullyCompleted || isAutoCounting ? '' : 'text-primary-foreground'}`}>
+                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isFullyCompleted || isAutoCounting ? 'text-muted-foreground' : 'text-primary-foreground'}`}>
                   {currentCompletedCount}
                 </span>
               </button>
@@ -239,7 +264,7 @@ export function AthkarItem({
           </Button>
         )}
       </CardContent>
-      {athkar.readingTimeSeconds && (
+      {athkar.readingTimeSeconds && !isSortMode && ( // Hide footer in sort mode
          <CardFooter className="text-xs text-muted-foreground pt-2 pb-3 justify-end">
             <p>زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
          </CardFooter>
@@ -247,3 +272,5 @@ export function AthkarItem({
     </Card>
   );
 }
+
+    
