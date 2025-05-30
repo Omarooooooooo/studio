@@ -86,8 +86,14 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (isClient) {
-      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-      setTheme(currentTheme);
+      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
+      const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      setTheme(initialTheme);
+      if (initialTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
 
       const storedSound = localStorage.getItem(SOUND_STORAGE_KEY);
       setIsSoundEnabled(storedSound ? JSON.parse(storedSound) : true);
@@ -151,6 +157,7 @@ export default function GroupPage() {
     if (groupIndex !== -1) {
       storedGroups[groupIndex] = updatedGroupData;
     } else {
+      // Should not happen if loading correctly, but as a fallback
       storedGroups.push(updatedGroupData);
     }
     saveStoredGroupsToLocalStorage(storedGroups);
@@ -203,7 +210,7 @@ export default function GroupPage() {
           logData = JSON.parse(logString);
         } catch (parseError) {
           console.error("Failed to parse Athkar log data from localStorage:", parseError);
-          logData = {};
+          logData = {}; // Reset if parsing fails
         }
       }
       const currentLoggedValue = logData[athkarArabic] || 0;
@@ -329,26 +336,22 @@ export default function GroupPage() {
         if (athkarIndex === -1) return prevGroup;
 
         const currentThikr = prevGroup.athkar[athkarIndex];
-        // Capture state BEFORE this specific increment logic runs
+        const targetCount = currentThikr.count || 1;
         const wasSessionHiddenPriorToThisUpdate = currentThikr.isSessionHidden; 
         
         let newSessionProgress = currentThikr.sessionProgress;
         let newIsSessionHidden = currentThikr.isSessionHidden;
 
-        // Only allow progress if not already hidden (completed in this session)
         if (!wasSessionHiddenPriorToThisUpdate) {
-            const targetCount = currentThikr.count || 1;
             newSessionProgress = Math.min(currentThikr.sessionProgress + 1, targetCount);
 
-            // Check for session completion event
             if (newSessionProgress >= targetCount) {
-                newIsSessionHidden = true; // Mark as hidden for the UI for this session
+                newIsSessionHidden = true; 
 
-                // Log to persistent storage ONLY if not already logged this session via ref
                 if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
                     console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) MET COMPLETION in session. Target: ${targetCount}. WILL LOG to persistent store.`);
                     updateSeparateAthkarLog(currentThikr.arabic, targetCount);
-                    sessionCompletedAthkarIdsRef.current.add(athkarId); // Mark as logged for this session
+                    sessionCompletedAthkarIdsRef.current.add(athkarId); 
                     console.log(`SESSION_REF_LOG: Added ${athkarId} to sessionCompletedAthkarIdsRef.`);
                 } else {
                     console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) ALREADY LOGGED THIS SESSION (ref check). No new persistent log.`);
@@ -381,13 +384,17 @@ export default function GroupPage() {
           const targetCount = a.count || 1;
           let newIsSessionHiddenForUI = a.isSessionHidden;
 
+          // If it was hidden and now progress is less than target, make it visible again
+          // and remove from session completion ref if it was there
           if (a.isSessionHidden && newSessionProgress < targetCount) {
-            newIsSessionHiddenForUI = false;
+            newIsSessionHiddenForUI = false; // Make it visible in UI
             if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
               sessionCompletedAthkarIdsRef.current.delete(athkarId);
               console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to decrement.`);
+              // NOTE: We do NOT subtract from the persistent log here.
+              // The persistent log is cumulative. Resetting session is fine.
             }
-            console.log(`LOG_ACTION: Athkar ${a.id} (${a.arabic.substring(0, 10)}) UN-COMPLETED in session by decrement. UI visible again. Session log state reset.`);
+            console.log(`LOG_ACTION: Athkar ${a.id} (${a.arabic.substring(0, 10)}) UN-COMPLETED in session by decrement. UI visible again. Session log state reset for this athkar.`);
           }
           return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHiddenForUI };
         }
@@ -405,27 +412,31 @@ export default function GroupPage() {
       if (athkarIndex === -1) return prevGroup;
 
       const currentThikr = prevGroup.athkar[athkarIndex];
-      if (currentThikr.count && currentThikr.count > 1) return prevGroup;
+      // This toggle is primarily for athkar with count 1 or undefined count
+      if (currentThikr.count && currentThikr.count > 1) return prevGroup; // Should use increment/decrement for these
 
       const wasSessionHiddenPriorToThisToggle = currentThikr.isSessionHidden;
       const newIsSessionHiddenForUI = !wasSessionHiddenPriorToThisToggle;
 
+      // If transitioning from not hidden to hidden (i.e., completing)
       if (newIsSessionHiddenForUI && !wasSessionHiddenPriorToThisToggle) {
         if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
           console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) COMPLETED in session. WILL LOG 1 to persistent store.`);
-          updateSeparateAthkarLog(currentThikr.arabic, 1);
+          updateSeparateAthkarLog(currentThikr.arabic, 1); // Log 1 for toggleable completion
           sessionCompletedAthkarIdsRef.current.add(athkarId);
           console.log(`SESSION_REF_LOG: Added ${athkarId} to sessionCompletedAthkarIdsRef.`);
         } else {
           console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) ALREADY LOGGED THIS SESSION (ref check). No new persistent log.`);
         }
       }
+      // If transitioning from hidden to not hidden (i.e., un-completing)
       else if (!newIsSessionHiddenForUI && wasSessionHiddenPriorToThisToggle) {
         if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
           sessionCompletedAthkarIdsRef.current.delete(athkarId);
           console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to toggle un-complete.`);
+           // NOTE: We do NOT subtract from the persistent log here.
         }
-        console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) UN-COMPLETED in session. UI visible. Session log state reset.`);
+        console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) UN-COMPLETED in session. UI visible. Session log state reset for this athkar.`);
       }
 
       const updatedAthkar = {

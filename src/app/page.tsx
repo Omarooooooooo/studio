@@ -102,9 +102,14 @@ export default function HomePage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light'); 
 
   useEffect(() => {
-    // Theme is initially set by inline script in RootLayout
-    const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-    setTheme(currentTheme);
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
+    const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme(initialTheme);
+    if (initialTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     
     const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedGroupsString) {
@@ -334,7 +339,6 @@ export default function HomePage() {
           )}
         </main>
       </div>
-
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button
