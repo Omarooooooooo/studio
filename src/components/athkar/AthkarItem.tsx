@@ -4,9 +4,10 @@
 import type { StoredAthkar } from '@/types'; 
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronUp } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
+import { cn } from '@/lib/utils';
 
 interface AthkarInSession extends StoredAthkar {
   sessionProgress: number;
@@ -39,7 +40,6 @@ export function AthkarItem({
   const isCountable = typeof athkar.count === 'number' && athkar.count > 1; 
   const currentSessionProgress = athkar.sessionProgress || 0;
   const isHiddenInSession = athkar.isSessionHidden;
-
 
   const [isAutoCounting, setIsAutoCounting] = useState(false);
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -99,46 +99,30 @@ export function AthkarItem({
   }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isHiddenInSession]);
 
   const circumference = 2 * Math.PI * 15.9155; 
-  const progressPercentage = athkar.count && athkar.count > 0 ? (currentSessionProgress / athkar.count) : (isHiddenInSession ? 1 : 0);
+  const targetCountForProgress = athkar.count || 1;
+  const progressPercentage = (currentSessionProgress / targetCountForProgress);
 
   const baseFontSizeRem = 1.5; 
   const baseLineHeight = 1.625; 
 
-  if (isSortMode) {
-    return (
-      <Card 
-        className={`w-full shadow-sm bg-card flex items-center p-3 rounded-md ${isHiddenInSession ? 'opacity-60' : 'opacity-100'}`}
-      >
-        {dragHandleProps && (
-          <div {...dragHandleProps} className="p-1 cursor-grab text-muted-foreground hover:text-foreground mr-2 rtl:ml-2 rtl:mr-0">
-            <GripVertical size={20} />
-          </div>
-        )}
-        <p 
-          className="font-arabic text-foreground truncate flex-grow text-center" 
-          lang="ar" 
-          dir="rtl"
-          style={{ 
-            fontSize: `${baseFontSizeRem * fontSizeMultiplier * 0.75}rem`, 
-            lineHeight: `1.5` 
-          }}
-        >
-          {athkar.arabic}
-        </p>
-      </Card>
-    );
-  }
-  
   return (
-    <Card className={`w-full shadow-lg hover:shadow-xl ${isHiddenInSession && !isSortMode ? 'hidden' : 'bg-card'} ${isSortMode && isHiddenInSession ? 'opacity-60' : 'opacity-100'}`}>
+    <Card className={cn(
+        "w-full shadow-lg hover:shadow-xl transition-shadow duration-200 ease-out",
+        isHiddenInSession && !isSortMode ? 'hidden' : 'bg-card',
+        isSortMode && isHiddenInSession ? 'opacity-60' : 'opacity-100'
+      )}
+    >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <div className="flex items-center">
-            {dragHandleProps && (
-              <div {...dragHandleProps} className="p-1 cursor-grab text-muted-foreground hover:text-foreground mr-2 rtl:ml-2 rtl:mr-0">
-                <GripVertical size={20} />
-              </div>
+          <div 
+            {...(isSortMode ? dragHandleProps : {})} 
+            className={cn(
+              "p-1 text-muted-foreground", 
+              isSortMode ? "cursor-grab hover:text-foreground" : "cursor-default"
             )}
+            aria-label={isSortMode ? "اسحب لترتيب الذكر" : undefined}
+          >
+            <GripVertical size={20} />
           </div>
           <div className="flex items-center gap-1">
             {athkar.virtue && (
@@ -216,7 +200,7 @@ export function AthkarItem({
                     cy="18"
                   />
                   <circle
-                    className="text-primary transition-all duration-300 ease-linear" 
+                    className={cn("transition-all duration-300 ease-linear", isHiddenInSession || isAutoCounting ? "text-muted-foreground" : "text-primary")}
                     strokeWidth="3"
                     strokeDasharray={`${progressPercentage * circumference}, ${circumference}`}
                     strokeLinecap="round"

@@ -1,25 +1,22 @@
 
 "use client";
 
-// import type { Athkar } from '@/types'; // Using AthkarInSession from GroupPage directly in map
-import type { Athkar as StoredAthkar } from '@/types';
+import type { StoredAthkar } from '@/types';
 import { AthkarItem } from './AthkarItem';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 
-// Define the augmented Athkar type that AthkarItem expects
 interface AthkarInSession extends StoredAthkar {
   sessionProgress: number;
   isSessionHidden: boolean;
 }
 
 interface AthkarListProps {
-  athkarList: AthkarInSession[]; // Expecting the augmented type
+  athkarList: AthkarInSession[];
   onToggleComplete: (id: string) => void;
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
-  // onResetCount: (id: string) => void; // No longer used by AthkarItem directly
-  onEditAthkar: (athkar: AthkarInSession) => void; // Pass AthkarInSession
-  onDeleteAthkar: (athkar: AthkarInSession) => void; // Pass AthkarInSession
+  onEditAthkar: (athkar: AthkarInSession) => void;
+  onDeleteAthkar: (athkar: AthkarInSession) => void;
   fontSizeMultiplier: number;
   isSortMode: boolean;
 }
@@ -29,7 +26,6 @@ export function AthkarList({
   onToggleComplete, 
   onIncrementCount, 
   onDecrementCount,
-  // onResetCount,
   onEditAthkar,
   onDeleteAthkar,
   fontSizeMultiplier,
@@ -48,26 +44,25 @@ export function AthkarList({
   }
 
   return (
-    <Droppable droppableId="athkarDroppable" isDropDisabled={false}>
+    <Droppable droppableId="athkarDroppable" isDropDisabled={!isSortMode}>
       {(provided) => (
         <div 
-          className={`space-y-${isSortMode ? '2' : '6'}`} // Smaller gap in sort mode
           {...provided.droppableProps}
           ref={provided.innerRef}
         >
           {athkarList.map((thikr, index) => (
-            <Draggable key={thikr.id} draggableId={thikr.id} index={index}>
+            <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={!isSortMode}>
               {(providedDraggable) => (
                 <div
                   ref={providedDraggable.innerRef}
                   {...providedDraggable.draggableProps}
+                  className={isSortMode ? 'mb-2' : 'mb-4'} // Apply margin here for spacing
                 >
                   <AthkarItem
-                    athkar={thikr} // thikr is AthkarInSession
+                    athkar={thikr}
                     onToggleComplete={onToggleComplete}
                     onIncrementCount={onIncrementCount}
                     onDecrementCount={onDecrementCount}
-                    // onResetCount={onResetCount}
                     onEdit={() => onEditAthkar(thikr)}
                     onDelete={() => onDeleteAthkar(thikr)}
                     dragHandleProps={providedDraggable.dragHandleProps}
