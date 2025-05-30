@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -16,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, ListCollapse } from 'lucide-react'; // Added ListCollapse for page icon
+import { Plus, ListCollapse } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
@@ -25,8 +26,10 @@ export default function HomePage() {
   const [groups, setGroups] = useState<AthkarGroup[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [hydrated, setHydrated] = useState(false); // New state to track hydration
   const { toast } = useToast();
 
+  // Load groups from localStorage on initial mount
   useEffect(() => {
     const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedGroupsString) {
@@ -34,14 +37,18 @@ export default function HomePage() {
         setGroups(JSON.parse(storedGroupsString));
       } catch (e) {
         console.error("Failed to parse stored groups:", e);
-        setGroups([]);
+        setGroups([]); // Fallback to empty array on error
       }
     }
+    setHydrated(true); // Mark as hydrated after attempting to load
   }, []);
 
+  // Save groups to localStorage whenever groups state changes, but only if hydrated
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
-  }, [groups]);
+    if (hydrated) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
+    }
+  }, [groups, hydrated]);
 
   const handleAddGroup = () => {
     if (!newGroupName.trim()) {
@@ -64,6 +71,15 @@ export default function HomePage() {
       description: `تمت إضافة مجموعة "${newGroup.name}".`,
     });
   };
+
+  if (!hydrated) {
+    // Optional: render a loading state or null while hydrating
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-background text-foreground">
+        <p className="text-lg">جاري التحميل...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
