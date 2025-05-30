@@ -123,7 +123,7 @@ export function AthkarItem({
   }
 
   return (
-    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted ? 'hidden' : 'bg-card'}`}>
+    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted && !isSortMode ? 'hidden' : 'bg-card'} ${isSortMode && isFullyCompleted ? 'opacity-60' : 'opacity-100'}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-center">
@@ -181,10 +181,7 @@ export function AthkarItem({
 
         {isCountable ? (
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>التكرار: {currentCompletedCount} / {athkar.count}</span>
-            </div>
-            
+            {/* Repetition count text removed from here */}
             <div className="flex items-center justify-center gap-3 sm:gap-4 my-4">
               <Button
                 variant="outline"
@@ -206,7 +203,7 @@ export function AthkarItem({
               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
                   <circle
-                    className="text-border" // Use theme border color
+                    className="text-border" 
                     strokeWidth="3"
                     stroke="currentColor"
                     fill="transparent"
@@ -215,7 +212,7 @@ export function AthkarItem({
                     cy="18"
                   />
                   <circle
-                    className="text-primary transition-all duration-300 ease-linear" // Use theme primary color
+                    className="text-primary transition-all duration-300 ease-linear" 
                     strokeWidth="3"
                     strokeDasharray={`${progressPercentage * circumference}, ${circumference}`}
                     strokeLinecap="round"
@@ -264,13 +261,17 @@ export function AthkarItem({
           </Button>
         )}
       </CardContent>
-      {athkar.readingTimeSeconds && !isSortMode && ( // Hide footer in sort mode
-         <CardFooter className="text-xs text-muted-foreground pt-2 pb-3 justify-end">
-            <p>زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
+      {(isCountable || athkar.readingTimeSeconds) && !isSortMode && (
+         <CardFooter className="text-xs text-muted-foreground pt-2 pb-3 flex justify-between">
+            {isCountable && (
+              <p className="rtl:text-right">التكرار: {currentCompletedCount} / {athkar.count}</p>
+            )}
+            {!isCountable && athkar.readingTimeSeconds && <span />} {/* Placeholder for alignment if only reading time exists */}
+            {athkar.readingTimeSeconds && (
+                <p className="ltr:text-right rtl:text-left">زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
+            )}
          </CardFooter>
         )}
     </Card>
   );
 }
-
-    
