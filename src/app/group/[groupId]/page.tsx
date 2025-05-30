@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { StoredAthkar, AthkarGroup } from '@/types';
+import type { StoredAthkar, AthkarGroup, AthkarLogStore } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,11 +31,10 @@ import {
 import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import type { AthkarLogStore } from '@/types';
 
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; // Standardized key
 const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
 const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
@@ -123,26 +122,11 @@ export default function GroupPage() {
     }
   }, [isHapticsEnabled, isClient]);
 
-
-  const getStoredGroups = useCallback((): AthkarGroup[] => {
-    if (typeof window === 'undefined') return [];
-    const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
-    if (storedGroupsString) {
-      try {
-        return JSON.parse(storedGroupsString) as AthkarGroup[];
-      } catch (e) {
-        console.error("Failed to parse groups from localStorage:", e);
-        return [];
-      }
-    }
-    return [];
-  }, []);
-
   const saveStoredGroupsToLocalStorage = useCallback((updatedGroups: AthkarGroup[]) => {
     if (typeof window !== 'undefined') {
         try {
             localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
-            console.log("GROUP_PAGE: Saved groups to localStorage", updatedGroups);
+            console.log("GROUP_PAGE: Saved groups structure to localStorage", updatedGroups);
         } catch (e) {
             console.error("Failed to save groups to localStorage:", e);
         }
@@ -151,16 +135,27 @@ export default function GroupPage() {
   
   const saveCurrentGroupStructureRef = useRef((updatedGroup: GroupInSession | null) => {
     if (!updatedGroup || typeof window === 'undefined') return;
-    const storedGroups = getStoredGroups();
+    
+    const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
+    let storedGroups: AthkarGroup[] = [];
+    if (storedGroupsString) {
+        try {
+            storedGroups = JSON.parse(storedGroupsString);
+        } catch (e) {
+            console.error("Failed to parse groups from localStorage during save structure:", e);
+            storedGroups = [];
+        }
+    }
+    
     const groupToSave: AthkarGroup = {
       ...updatedGroup,
       athkar: updatedGroup.athkar.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
     };
+
     const groupIndex = storedGroups.findIndex(g => g.id === groupToSave.id);
     if (groupIndex !== -1) {
       storedGroups[groupIndex] = groupToSave;
     } else {
-       // Should not happen if group exists, but as a fallback
        storedGroups.push(groupToSave); 
     }
     saveStoredGroupsToLocalStorage(storedGroups);
@@ -170,21 +165,31 @@ export default function GroupPage() {
   const loadGroup = useCallback(() => {
     if (groupId && typeof window !== 'undefined') {
       setIsLoading(true);
-      const storedGroups = getStoredGroups();
-      const currentStoredGroup = storedGroups.find(g => g.id === groupId);
-      if (currentStoredGroup) {
-        const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
-          ...thikr,
-          sessionProgress: 0, 
-          isSessionHidden: false, 
-        }));
-        setGroup({ ...currentStoredGroup, athkar: athkarInSession });
+      const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
+      if (storedGroupsString) {
+        try {
+            const storedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
+            const currentStoredGroup = storedGroups.find(g => g.id === groupId);
+            if (currentStoredGroup) {
+                const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
+                ...thikr,
+                sessionProgress: 0, 
+                isSessionHidden: false, 
+                }));
+                setGroup({ ...currentStoredGroup, athkar: athkarInSession });
+            } else {
+                setGroup(null);
+            }
+        } catch(e){
+            console.error("Failed to parse groups from localStorage on load:", e);
+            setGroup(null);
+        }
       } else {
         setGroup(null);
       }
     }
     setIsLoading(false);
-  }, [groupId, getStoredGroups]);
+  }, [groupId]);
 
   useEffect(() => {
     if(isClient && groupId){
@@ -192,31 +197,12 @@ export default function GroupPage() {
     }
   }, [loadGroup, isClient, groupId]);
 
-  const updateSeparateAthkarLog = useCallback((athkarArabic: string, repetitionsToAdd: number) => {
-    console.log(`LOG_UPDATE: Entered updateSeparateAthkarLog for "${athkarArabic}" with initial repetitionsToAdd: ${repetitionsToAdd}`);
-
-    if (typeof window === 'undefined') return;
-
-    const allGroups = getStoredGroups(); 
-    let targetCountForThisAthkar: number | undefined = undefined;
-
-    for (const group of allGroups) {
-        const athkarInGroup = group.athkar.find(a => a.arabic === athkarArabic);
-        if (athkarInGroup) {
-            targetCountForThisAthkar = athkarInGroup.count;
-            break;
-        }
+  const updateSeparateAthkarLog = useCallback((athkarArabic: string, amountToAdd: number) => {
+    console.log(`LOG_UPDATE: Entered updateSeparateAthkarLog for "${athkarArabic}" with amountToAdd: ${amountToAdd}`);
+    if (typeof window === 'undefined' || amountToAdd <= 0) {
+        console.log(`LOG_UPDATE: Aborted. amountToAdd is ${amountToAdd} or window is undefined.`);
+        return;
     }
-    
-    const resolvedTargetCount = targetCountForThisAthkar === undefined || targetCountForThisAthkar <= 0 ? 1 : targetCountForThisAthkar;
-    console.log(`LOG_UPDATE: Resolved targetCount for "${athkarArabic}" as: ${resolvedTargetCount}`);
-
-    const finalAmountToAdd = repetitionsToAdd - resolvedTargetCount;
-    console.log(`LOG_UPDATE: Calculated finalAmountToAdd for "${athkarArabic}": ${repetitionsToAdd} - ${resolvedTargetCount} = ${finalAmountToAdd}`);
-    
-    // According to user's request, we add the result of (repetitionsToAdd - resolvedTargetCount)
-    // If this is 0 or negative, it means the original repetitionsToAdd was equal or less than targetCount.
-    // The log will reflect this.
 
     try {
       const logString = localStorage.getItem(ATHKAR_LOG_STORAGE_KEY);
@@ -230,14 +216,14 @@ export default function GroupPage() {
         }
       }
       const currentLoggedValue = logData[athkarArabic] || 0;
-      logData[athkarArabic] = currentLoggedValue + finalAmountToAdd;
+      logData[athkarArabic] = currentLoggedValue + amountToAdd;
       
       localStorage.setItem(ATHKAR_LOG_STORAGE_KEY, JSON.stringify(logData));
-      console.log(`LOG_UPDATE: Successfully updated log for "${athkarArabic}". Old: ${currentLoggedValue}, Added based on rule: ${finalAmountToAdd}, New total: ${logData[athkarArabic]}`);
+      console.log(`LOG_UPDATE: Successfully updated log for "${athkarArabic}". Old: ${currentLoggedValue}, Added: ${amountToAdd}, New total: ${logData[athkarArabic]}`);
     } catch (e) {
       console.error("Failed to update separate Athkar log in localStorage:", e);
     }
-  }, [getStoredGroups]);
+  }, []);
 
 
   const handleAddAthkar = useCallback(() => {
@@ -339,28 +325,29 @@ export default function GroupPage() {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
 
-      let athkarJustCompletedArabic: string | null = null;
-      let repetitionsForLog: number | null = null;
+      let athkarToLogArabic: string | null = null;
+      let amountToLog: number | null = null;
 
       const updatedAthkarList = prevGroup.athkar.map(a => {
         if (a.id === athkarId) {
           const currentThikr = a;
           const targetCount = currentThikr.count || 1;
-          const wasSessionHidden = currentThikr.isSessionHidden;
+          const wasSessionHidden = currentThikr.isSessionHidden; // State *before* this increment
 
           let newSessionProgress = currentThikr.sessionProgress;
-          if (!wasSessionHidden) {
+          if (!wasSessionHidden) { // Only increment progress if not already hidden in this session
             newSessionProgress = Math.min(currentThikr.sessionProgress + 1, targetCount);
           }
           
           const newIsSessionHidden = newSessionProgress >= targetCount;
           
+          // Log only if it *just became* hidden in this session
           if (!wasSessionHidden && newIsSessionHidden) {
-            console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) MET COMPLETION in session. Original targetCount for log: ${targetCount}`);
-            athkarJustCompletedArabic = currentThikr.arabic;
-            repetitionsForLog = targetCount; // This is the 'repetitionsToAdd' for updateSeparateAthkarLog
+            console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) MET COMPLETION in session. Will log: ${targetCount}`);
+            athkarToLogArabic = currentThikr.arabic;
+            amountToLog = targetCount; // The amount to add to the persistent log is the targetCount
           } else {
-            console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) incremented. Hidden: ${newIsSessionHidden}, Progress: ${newSessionProgress}. No log update decision here.`);
+             console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) incremented. Progress: ${newSessionProgress}/${targetCount}. Was hidden: ${wasSessionHidden}, Is now hidden: ${newIsSessionHidden}. No log update.`);
           }
           
           return {
@@ -372,9 +359,9 @@ export default function GroupPage() {
         return a;
       });
 
-      if (athkarJustCompletedArabic && repetitionsForLog !== null) {
-        console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for ${athkarJustCompletedArabic} with repetitionsToAdd: ${repetitionsForLog}`);
-        updateSeparateAthkarLog(athkarJustCompletedArabic, repetitionsForLog);
+      if (athkarToLogArabic && amountToLog !== null && amountToLog > 0) {
+        console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for ${athkarToLogArabic} with amount: ${amountToLog}`);
+        updateSeparateAthkarLog(athkarToLogArabic, amountToLog);
       }
       
       return { ...prevGroup, athkar: updatedAthkarList };
@@ -392,7 +379,6 @@ export default function GroupPage() {
           const targetCount = a.count || 1;
           let newIsSessionHidden = a.isSessionHidden;
 
-          // If it was hidden (completed) and progress drops below target, it's no longer hidden for the session
           if (a.isSessionHidden && newSessionProgress < targetCount) {
             newIsSessionHidden = false;
             console.log(`LOG_ACTION: Athkar ${a.id} (${a.arabic.substring(0,10)}) UN-COMPLETED in session by decrement.`);
@@ -409,24 +395,24 @@ export default function GroupPage() {
     setGroup(prevGroup => {
         if (!prevGroup) return null;
         
-        let athkarJustToggledArabic: string | null = null;
-        let repetitionsForLogToggle: number | null = null;
+        let athkarToLogArabic: string | null = null;
+        let amountToLog: number | null = null;
 
         const updatedAthkarList = prevGroup.athkar.map(a => {
             if (a.id === athkarId) {
                 const currentThikr = a;
-                // This function is for athkar with count 1 or undefined (toggleable)
-                if (currentThikr.count && currentThikr.count > 1) return currentThikr;
+                if (currentThikr.count && currentThikr.count > 1) return currentThikr; // Safety check
 
-                const wasSessionHidden = currentThikr.isSessionHidden;
+                const wasSessionHidden = currentThikr.isSessionHidden; // State *before* this toggle
                 const newIsSessionHidden = !wasSessionHidden;
 
-                if (newIsSessionHidden && !wasSessionHidden) { // Just became hidden (completed)
-                    console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) (toggleable) COMPLETED in session. Original amount for log: 1`);
-                    athkarJustToggledArabic = currentThikr.arabic;
-                    repetitionsForLogToggle = 1; // This is the 'repetitionsToAdd' for updateSeparateAthkarLog
+                // Log only if it *just became* hidden in this session
+                if (!wasSessionHidden && newIsSessionHidden) {
+                    console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) (toggleable) COMPLETED in session. Will log: 1`);
+                    athkarToLogArabic = currentThikr.arabic;
+                    amountToLog = 1; // For toggleable, log 1
                 } else {
-                    console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) (toggleable) UN-COMPLETED in session.`);
+                   console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) (toggleable) UN-COMPLETED in session. Was hidden: ${wasSessionHidden}, Is now hidden: ${newIsSessionHidden}. No log update.`);
                 }
                
                 return {
@@ -438,9 +424,9 @@ export default function GroupPage() {
             return a;
         });
        
-        if (athkarJustToggledArabic && repetitionsForLogToggle !== null) {
-            console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for ${athkarJustToggledArabic} with repetitionsToAdd: ${repetitionsForLogToggle}`);
-            updateSeparateAthkarLog(athkarJustToggledArabic, repetitionsForLogToggle);
+        if (athkarToLogArabic && amountToLog !== null && amountToLog > 0) {
+            console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for ${athkarToLogArabic} with amount: ${amountToLog}`);
+            updateSeparateAthkarLog(athkarToLogArabic, amountToLog);
         }
         return { ...prevGroup, athkar: updatedAthkarList };
     });
@@ -768,3 +754,5 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    
