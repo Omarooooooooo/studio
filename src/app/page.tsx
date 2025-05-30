@@ -223,7 +223,6 @@ export default function HomePage() {
             </Button>
           </div>
         ) : (
-          hydrated && ( 
             <DragDropContext onDragEnd={onDragEndGroup}>
               <Droppable droppableId="groupsDroppable" isDropDisabled={false}>
                 {(provided) => (
@@ -274,7 +273,6 @@ export default function HomePage() {
                 )}
               </Droppable>
             </DragDropContext>
-          )
         )}
       </main>
 
