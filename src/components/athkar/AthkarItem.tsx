@@ -39,7 +39,7 @@ export function AthkarItem({
 }: AthkarItemProps) {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 1; 
   const currentSessionProgress = athkar.sessionProgress || 0;
-  const isHiddenInSession = athkar.isSessionHidden;
+  const isSessionHidden = athkar.isSessionHidden;
 
   const [isAutoCounting, setIsAutoCounting] = useState(false);
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,7 +52,7 @@ export function AthkarItem({
   }, [onIncrementCount]);
 
   useEffect(() => {
-    if (isAutoCounting && !isHiddenInSession && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
+    if (isAutoCounting && !isSessionHidden && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       autoCountIntervalRef.current = setInterval(() => {
         if (stableOnIncrementCountRef.current && !athkar.isSessionHidden) { 
              stableOnIncrementCountRef.current(athkar.id);
@@ -65,7 +65,7 @@ export function AthkarItem({
         clearInterval(autoCountIntervalRef.current);
         autoCountIntervalRef.current = null;
       }
-      if (isAutoCounting && (isHiddenInSession || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
+      if (isAutoCounting && (isSessionHidden || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
         setIsAutoCounting(false); 
       }
     }
@@ -74,29 +74,29 @@ export function AthkarItem({
         clearInterval(autoCountIntervalRef.current);
       }
     };
-  }, [isAutoCounting, isHiddenInSession, isCountable, athkar.id, athkar.readingTimeSeconds, athkar.isSessionHidden]);
+  }, [isAutoCounting, isSessionHidden, isCountable, athkar.id, athkar.readingTimeSeconds]);
 
 
   const handleMainAction = useCallback(() => {
     if (isCountable) {
-      if (!isHiddenInSession) { 
+      if (!isSessionHidden) { 
         onIncrementCount(athkar.id);
       }
     } else { 
       onToggleComplete(athkar.id);
     }
-  }, [isCountable, isHiddenInSession, athkar.id, onIncrementCount, onToggleComplete]);
+  }, [isCountable, isSessionHidden, athkar.id, onIncrementCount, onToggleComplete]);
 
 
   const handleToggleAutoCount = useCallback(() => {
     if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       if (isAutoCounting) {
         setIsAutoCounting(false);
-      } else if (!isHiddenInSession) { 
+      } else if (!isSessionHidden) { 
         setIsAutoCounting(true);
       }
     }
-  }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isHiddenInSession]);
+  }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isSessionHidden]);
 
   const circumference = 2 * Math.PI * 15.9155; 
   const targetCountForProgress = athkar.count || 1;
@@ -105,11 +105,44 @@ export function AthkarItem({
   const baseFontSizeRem = 1.5; 
   const baseLineHeight = 1.625; 
 
+  if (isSortMode) {
+    return (
+      <Card className={cn(
+          "w-full shadow-md hover:shadow-lg transition-shadow duration-200 ease-out flex items-center p-2",
+          isSessionHidden ? 'opacity-60 bg-card/80' : 'bg-card'
+        )}
+      >
+        <div 
+          {...(isSortMode ? dragHandleProps : {})} 
+          className={cn(
+            "p-1 text-muted-foreground", 
+            isSortMode ? "cursor-grab hover:text-foreground" : "cursor-default"
+          )}
+          aria-label={isSortMode ? "اسحب لترتيب الذكر" : undefined}
+        >
+          <GripVertical size={20} />
+        </div>
+        <p 
+          className="flex-grow text-center font-arabic text-foreground truncate px-2" 
+          lang="ar" 
+          dir="rtl"
+          style={{ 
+            fontSize: `${baseFontSizeRem * fontSizeMultiplier * 0.8}rem`, // Slightly smaller in sort mode
+            lineHeight: '1.5' 
+          }}
+          title={athkar.arabic}
+        >
+          {athkar.arabic}
+        </p>
+         <div className="w-8 h-8"> {/* Placeholder to balance layout if needed, or for future sort-mode actions */}</div>
+      </Card>
+    );
+  }
+
   return (
     <Card className={cn(
         "w-full shadow-lg hover:shadow-xl transition-shadow duration-200 ease-out",
-        isHiddenInSession && !isSortMode ? 'hidden' : 'bg-card',
-        isSortMode && isHiddenInSession ? 'opacity-60' : 'opacity-100'
+        isSessionHidden && !isSortMode ? 'hidden' : 'bg-card',
       )}
     >
       <CardHeader className="pb-3">
@@ -175,7 +208,7 @@ export function AthkarItem({
                 variant="outline"
                 size="icon"
                 onClick={() => onDecrementCount(athkar.id)}
-                disabled={currentSessionProgress === 0 || isAutoCounting || isHiddenInSession}
+                disabled={currentSessionProgress === 0 || isAutoCounting || isSessionHidden}
                 aria-label="إنقاص العد"
                 className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
               >
@@ -184,10 +217,10 @@ export function AthkarItem({
 
               <button
                 onClick={handleMainAction} 
-                disabled={isHiddenInSession || isAutoCounting}
-                aria-label={isHiddenInSession ? "مكتمل لهذه الجلسة" : "زيادة العد"}
+                disabled={isSessionHidden || isAutoCounting}
+                aria-label={isSessionHidden ? "مكتمل لهذه الجلسة" : "زيادة العد"}
                 className={`relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                            ${isHiddenInSession || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
+                            ${isSessionHidden || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
                   <circle
@@ -200,7 +233,7 @@ export function AthkarItem({
                     cy="18"
                   />
                   <circle
-                    className={cn("transition-all duration-300 ease-linear", isHiddenInSession || isAutoCounting ? "text-muted-foreground" : "text-primary")}
+                    className={cn("transition-all duration-300 ease-linear", isSessionHidden || isAutoCounting ? "text-muted-foreground" : "text-primary")}
                     strokeWidth="3"
                     strokeDasharray={`${progressPercentage * circumference}, ${circumference}`}
                     strokeLinecap="round"
@@ -212,7 +245,7 @@ export function AthkarItem({
                     transform="rotate(-90 18 18)" 
                   />
                 </svg>
-                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isHiddenInSession || isAutoCounting ? 'text-muted-foreground' : 'text-primary-foreground'}`}>
+                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isSessionHidden || isAutoCounting ? 'text-muted-foreground' : 'text-primary-foreground'}`}>
                   {currentSessionProgress}
                 </span>
               </button>
@@ -222,7 +255,7 @@ export function AthkarItem({
                   variant={isAutoCounting ? "destructive" : "outline"}
                   size="icon"
                   onClick={handleToggleAutoCount}
-                  disabled={isHiddenInSession || (!isAutoCounting && (!athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
+                  disabled={isSessionHidden || (!isAutoCounting && (!athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
                   className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
                   aria-label={isAutoCounting ? "إيقاف التعداد التلقائي" : "بدء التعداد التلقائي"}
                 >
@@ -235,17 +268,17 @@ export function AthkarItem({
           </div>
         ) : ( 
           <Button
-            variant={isHiddenInSession ? "secondary" : "default"}
+            variant={isSessionHidden ? "secondary" : "default"}
             onClick={handleMainAction} 
             className="w-full"
-            aria-label={isHiddenInSession ? "تمييز كغير مكتمل لهذه الجلسة" : "تمييز كمكتمل لهذه الجلسة"}
+            aria-label={isSessionHidden ? "تمييز كغير مكتمل لهذه الجلسة" : "تمييز كمكتمل لهذه الجلسة"}
           >
-            {isHiddenInSession ? (
+            {isSessionHidden ? (
               <CheckCircle2 size={20} className="mr-2 rtl:ml-2 rtl:mr-0 text-green-500" />
             ) : (
               <Circle size={20} className="mr-2 rtl:ml-2 rtl:mr-0" />
             )}
-            {isHiddenInSession ? 'مكتمل (لهذه الجلسة)' : 'إكمال الذكر'}
+            {isSessionHidden ? 'مكتمل (لهذه الجلسة)' : 'إكمال الذكر'}
           </Button>
         )}
       </CardContent>
@@ -263,3 +296,5 @@ export function AthkarItem({
     </Card>
   );
 }
+
+    
