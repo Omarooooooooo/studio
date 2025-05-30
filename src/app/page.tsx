@@ -29,7 +29,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  // DropdownMenuLabel, // No longer needed
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -57,30 +56,32 @@ export default function HomePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (storedGroupsString) {
-      try {
-        const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
-        const normalizedGroups = parsedGroups.map(group => ({
-          ...group,
-          athkar: group.athkar || [], 
-        }));
-        setGroups(normalizedGroups);
-      } catch (e) {
-        console.error("Failed to parse stored groups:", e);
-        setGroups([]);
+    if (typeof window !== 'undefined') {
+      const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedGroupsString) {
+        try {
+          const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
+          const normalizedGroups = parsedGroups.map(group => ({
+            ...group,
+            athkar: group.athkar || [], 
+          }));
+          setGroups(normalizedGroups);
+        } catch (e) {
+          console.error("Failed to parse stored groups:", e);
+          setGroups([]);
+        }
       }
     }
-    setHydrated(true);
+    setHydrated(true); // Set hydrated to true after attempting to load from localStorage
   }, []);
 
   useEffect(() => {
-    if (hydrated) {
+    if (hydrated && typeof window !== 'undefined') { // Only save if hydrated
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
     }
   }, [groups, hydrated]);
 
-  const handleAddGroup = () => {
+  const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
       toast({
         title: "خطأ",
@@ -101,15 +102,15 @@ export default function HomePage() {
       title: "تم بنجاح",
       description: `تمت إضافة مجموعة "${newGroup.name}".`,
     });
-  };
+  }, [newGroupName, toast]);
 
-  const openEditDialog = (group: AthkarGroup) => {
+  const openEditDialog = useCallback((group: AthkarGroup) => {
     setEditingGroup(group);
     setEditedGroupName(group.name);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleEditGroup = () => {
+  const handleEditGroup = useCallback(() => {
     if (!editingGroup || !editedGroupName.trim()) {
       toast({
         title: "خطأ",
@@ -127,29 +128,35 @@ export default function HomePage() {
       title: "تم التعديل",
       description: `تم تغيير اسم المجموعة إلى "${editedGroupName.trim()}".`,
     });
-  };
+  }, [editingGroup, editedGroupName, toast]);
 
-  const handleDeleteGroup = () => {
+  const openDeleteDialog = useCallback((group: AthkarGroup) => {
+    setDeletingGroup(group);
+  }, []);
+
+
+  const handleDeleteGroup = useCallback(() => {
     if (!deletingGroup) return;
     setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
-    setDeletingGroup(null);
+    setDeletingGroup(null); // Close dialog after deletion
     toast({
       title: "تم الحذف",
       description: `تم حذف مجموعة "${deletingGroup.name}".`,
       variant: "destructive",
     });
-  };
+  }, [deletingGroup, toast]);
 
-  const onDragEndGroup = (result: DropResult) => {
+  const onDragEndGroup = useCallback((result: DropResult) => {
     if (!result.destination) return;
     if (result.destination.index === result.source.index) return;
 
-    const reorderedGroups = Array.from(groups);
-    const [movedGroup] = reorderedGroups.splice(result.source.index, 1);
-    reorderedGroups.splice(result.destination.index, 0, movedGroup);
-
-    setGroups(reorderedGroups);
-  };
+    setGroups(prevGroups => {
+      const reorderedGroups = Array.from(prevGroups);
+      const [movedGroup] = reorderedGroups.splice(result.source.index, 1);
+      reorderedGroups.splice(result.destination!.index, 0, movedGroup);
+      return reorderedGroups;
+    });
+  }, []);
 
   if (!hydrated) {
     return (
@@ -185,65 +192,66 @@ export default function HomePage() {
             </Button>
           </div>
         ) : (
-          <DragDropContext onDragEnd={onDragEndGroup}>
-            <Droppable droppableId="groupsDroppable">
-              {(provided) => (
-                <div
-                  className="space-y-4"
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                >
-                  {groups.map((group, index) => (
-                    <Draggable key={group.id} draggableId={group.id} index={index}>
-                      {(providedDraggable) => (
-                        <Card
-                          ref={providedDraggable.innerRef}
-                          {...providedDraggable.draggableProps}
-                          className="shadow-md hover:shadow-lg transition-shadow duration-300"
-                        >
-                          <CardContent className="p-4 flex items-center justify-between">
-                            <div {...providedDraggable.dragHandleProps} className="p-2 cursor-grab text-muted-foreground hover:text-foreground">
-                                <GripVertical size={20} />
-                            </div>
-                            <Link href={`/group/${group.id}`} passHref className="flex-grow mx-2">
-                              <span className="text-lg font-semibold text-primary hover:underline cursor-pointer">
-                                {group.name}
-                              </span>
-                              <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
-                            </Link>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-5 w-5" />
-                                  <span className="sr-only">خيارات المجموعة</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" dir="rtl">
-                                <DropdownMenuItem onClick={() => openEditDialog(group)}>
-                                  <Edit2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-                                  تعديل الاسم
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
-                                  onClick={() => setDeletingGroup(group)}
-                                  onSelect={(e) => e.preventDefault()} 
-                                  >
-                                  <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-                                  حذف المجموعة
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+          hydrated && ( // Only render DragDropContext on client after hydration
+            <DragDropContext onDragEnd={onDragEndGroup}>
+              <Droppable droppableId="groupsDroppable">
+                {(provided) => (
+                  <div
+                    className="space-y-4"
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                  >
+                    {groups.map((group, index) => (
+                      <Draggable key={group.id} draggableId={group.id} index={index}>
+                        {(providedDraggable) => (
+                          <Card
+                            ref={providedDraggable.innerRef}
+                            {...providedDraggable.draggableProps}
+                            className="shadow-md hover:shadow-lg transition-shadow duration-300"
+                          >
+                            <CardContent className="p-4 flex items-center justify-between">
+                              <div {...providedDraggable.dragHandleProps} className="p-2 cursor-grab text-muted-foreground hover:text-foreground">
+                                  <GripVertical size={20} />
+                              </div>
+                              <Link href={`/group/${group.id}`} passHref className="flex-grow mx-2">
+                                <span className="text-lg font-semibold text-primary hover:underline cursor-pointer">
+                                  {group.name}
+                                </span>
+                                <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
+                              </Link>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-5 w-5" />
+                                    <span className="sr-only">خيارات المجموعة</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" dir="rtl">
+                                  <DropdownMenuItem onClick={() => openEditDialog(group)}>
+                                    <Edit2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
+                                    تعديل الاسم
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
+                                    onClick={() => openDeleteDialog(group)} // Changed to openDeleteDialog
+                                    >
+                                    <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
+                                    حذف المجموعة
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          )
         )}
       </main>
 
@@ -285,11 +293,11 @@ export default function HomePage() {
       </Dialog>
 
       {editingGroup && (
-        <Dialog open={isEditDialogOpen} onOpenChange={(prevOpen) => {
-            if (!prevOpen && isEditDialogOpen) { 
+        <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
+            if (!isOpen) { 
                 setEditingGroup(null); 
             }
-            setIsEditDialogOpen(prevOpen);
+            setIsEditDialogOpen(isOpen);
         }}>
           <DialogContent className="sm:max-w-[425px]" dir="rtl">
             <DialogHeader>
@@ -323,8 +331,8 @@ export default function HomePage() {
       )}
 
       {deletingGroup && (
-        <AlertDialog open={!!deletingGroup} onOpenChange={(open) => {
-            if (!open) {
+        <AlertDialog open={!!deletingGroup} onOpenChange={(isOpen) => {
+            if (!isOpen) {
                 setDeletingGroup(null);
             }
         }}>

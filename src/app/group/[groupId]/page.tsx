@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { AthkarGroup, Athkar } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, Edit3, Trash2 } from 'lucide-react';
+import { ArrowRight, Plus, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from 'react-beautiful-dnd';
@@ -42,6 +42,8 @@ export default function GroupPage() {
   const [group, setGroup] = useState<AthkarGroup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
 
   // Add Athkar Dialog State
   const [isAddAthkarDialogOpen, setIsAddAthkarDialogOpen] = useState(false);
@@ -61,9 +63,45 @@ export default function GroupPage() {
   // Delete Athkar Dialog State
   const [deletingAthkar, setDeletingAthkar] = useState<Athkar | null>(null);
 
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+
+  const saveGroupsToLocalStorage = useCallback((allGroups: AthkarGroup[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allGroups));
+    }
+  }, []);
+
+  const saveCurrentGroupRef = useRef(saveGroupsToLocalStorage);
+   useEffect(() => {
+    saveCurrentGroupRef.current = (updatedGroup: AthkarGroup | null) => {
+      if (!updatedGroup || typeof window === 'undefined') return;
+      const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+      let storedGroups: AthkarGroup[] = [];
+      if (storedGroupsString) {
+        try {
+          storedGroups = JSON.parse(storedGroupsString);
+        } catch (e) {
+          console.error("Failed to parse groups from localStorage during save:", e);
+          toast({ title: "خطأ", description: "فشل حفظ التغييرات.", variant: "destructive" });
+          return;
+        }
+      }
+      const groupIndex = storedGroups.findIndex(g => g.id === updatedGroup.id);
+      if (groupIndex !== -1) {
+        storedGroups[groupIndex] = updatedGroup;
+      } else {
+         storedGroups.push(updatedGroup);
+      }
+      saveGroupsToLocalStorage(storedGroups);
+    };
+  }, [saveGroupsToLocalStorage, toast]);
+
 
   const loadGroup = useCallback(() => {
-    if (groupId) {
+    if (groupId && typeof window !== 'undefined') {
       const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedGroupsString) {
         try {
@@ -91,35 +129,8 @@ export default function GroupPage() {
     loadGroup();
   }, [loadGroup]);
 
-  const saveGroupsToLocalStorage = useCallback((allGroups: AthkarGroup[]) => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allGroups));
-  }, []);
-  
-  const saveCurrentGroup = useCallback((updatedGroup: AthkarGroup | null) => {
-    if (!updatedGroup) return;
-    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    let storedGroups: AthkarGroup[] = [];
-    if (storedGroupsString) {
-      try {
-        storedGroups = JSON.parse(storedGroupsString);
-      } catch (e) {
-        console.error("Failed to parse groups from localStorage during save:", e);
-        toast({ title: "خطأ", description: "فشل حفظ التغييرات.", variant: "destructive" });
-        return;
-      }
-    }
-    const groupIndex = storedGroups.findIndex(g => g.id === updatedGroup.id);
-    if (groupIndex !== -1) {
-      storedGroups[groupIndex] = updatedGroup;
-      saveGroupsToLocalStorage(storedGroups);
-    } else {
-       // This case should ideally not happen if group was loaded correctly
-       saveGroupsToLocalStorage([...storedGroups, updatedGroup]);
-    }
-  }, [saveGroupsToLocalStorage, toast]);
 
-
-  const handleAddAthkar = () => {
+  const handleAddAthkar = useCallback(() => {
     if (!newAthkarArabic.trim()) {
       toast({ title: "خطأ", description: "الرجاء إدخال نص الذكر.", variant: "destructive" });
       return;
@@ -146,31 +157,32 @@ export default function GroupPage() {
       completedCount: 0,
     };
 
-    if (group) {
-      const updatedAthkar = [...group.athkar, newAthkarItem];
-      const updatedGroup = { ...group, athkar: updatedAthkar };
-      setGroup(updatedGroup);
-      saveCurrentGroup(updatedGroup);
+    setGroup(prevGroup => {
+      if (!prevGroup) return null;
+      const updatedAthkar = [...prevGroup.athkar, newAthkarItem];
+      const updatedGroup = { ...prevGroup, athkar: updatedAthkar };
+      saveCurrentGroupRef.current(updatedGroup);
+      return updatedGroup;
+    });
 
-      setNewAthkarArabic('');
-      setNewAthkarVirtue('');
-      setNewAthkarCount('');
-      setNewAthkarReadingTime('');
-      setIsAddAthkarDialogOpen(false);
-      toast({ title: "تم بنجاح", description: "تمت إضافة الذكر إلى المجموعة." });
-    }
-  };
+    setNewAthkarArabic('');
+    setNewAthkarVirtue('');
+    setNewAthkarCount('');
+    setNewAthkarReadingTime('');
+    setIsAddAthkarDialogOpen(false);
+    toast({ title: "تم بنجاح", description: "تمت إضافة الذكر إلى المجموعة." });
+  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, toast]);
 
-  const openEditAthkarDialog = (athkarToEdit: Athkar) => {
+  const openEditAthkarDialog = useCallback((athkarToEdit: Athkar) => {
     setEditingAthkar(athkarToEdit);
     setEditedAthkarArabic(athkarToEdit.arabic);
     setEditedAthkarVirtue(athkarToEdit.virtue || '');
     setEditedAthkarCount(athkarToEdit.count?.toString() || '');
     setEditedAthkarReadingTime(athkarToEdit.readingTimeSeconds?.toString() || '');
     setIsEditAthkarDialogOpen(true);
-  };
+  }, []);
 
-  const handleEditAthkar = () => {
+  const handleEditAthkar = useCallback(() => {
     if (!editingAthkar || !editedAthkarArabic.trim()) {
       toast({ title: "خطأ", description: "الرجاء إدخال نص الذكر.", variant: "destructive" });
       return;
@@ -187,8 +199,9 @@ export default function GroupPage() {
       return;
     }
 
-    if (group) {
-      const updatedAthkarList = group.athkar.map(a => 
+    setGroup(prevGroup => {
+      if (!prevGroup || !editingAthkar) return prevGroup;
+      const updatedAthkarList = prevGroup.athkar.map(a => 
         a.id === editingAthkar.id 
         ? { 
             ...a, 
@@ -199,78 +212,86 @@ export default function GroupPage() {
           } 
         : a
       );
-      const updatedGroup = { ...group, athkar: updatedAthkarList };
-      setGroup(updatedGroup);
-      saveCurrentGroup(updatedGroup);
-      setIsEditAthkarDialogOpen(false);
-      setEditingAthkar(null);
-      toast({ title: "تم التعديل", description: "تم تعديل الذكر بنجاح." });
-    }
-  };
+      const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
+      saveCurrentGroupRef.current(updatedGroup);
+      return updatedGroup;
+    });
+    
+    setIsEditAthkarDialogOpen(false);
+    setEditingAthkar(null);
+    toast({ title: "تم التعديل", description: "تم تعديل الذكر بنجاح." });
+  }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue, toast]);
   
-  const openDeleteAthkarDialog = (athkarToDelete: Athkar) => {
+  const openDeleteAthkarDialog = useCallback((athkarToDelete: Athkar) => {
     setDeletingAthkar(athkarToDelete);
-  };
+  }, []);
 
-  const handleDeleteAthkar = () => {
-    if (!deletingAthkar || !group) return;
-    const updatedAthkarList = group.athkar.filter(a => a.id !== deletingAthkar.id);
-    const updatedGroup = { ...group, athkar: updatedAthkarList };
-    setGroup(updatedGroup);
-    saveCurrentGroup(updatedGroup);
+  const handleDeleteAthkar = useCallback(() => {
+    if (!deletingAthkar) return;
+     setGroup(prevGroup => {
+        if (!prevGroup || !deletingAthkar) return prevGroup;
+        const updatedAthkarList = prevGroup.athkar.filter(a => a.id !== deletingAthkar.id);
+        const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
+        saveCurrentGroupRef.current(updatedGroup);
+        return updatedGroup;
+     });
     setDeletingAthkar(null);
     toast({ title: "تم الحذف", description: "تم حذف الذكر من المجموعة.", variant: "destructive" });
-  };
+  }, [deletingAthkar, toast]);
 
 
-  const updateAthkarInGroup = (athkarId: string, updateFn: (athkar: Athkar) => Athkar) => {
-    if (group) {
-      const updatedAthkarList = group.athkar.map(a => a.id === athkarId ? updateFn(a) : a);
-      const updatedGroup = { ...group, athkar: updatedAthkarList };
-      setGroup(updatedGroup);
-      saveCurrentGroup(updatedGroup);
-    }
-  };
+  const updateAthkarInGroup = useCallback((athkarId: string, updateFn: (athkar: Athkar) => Athkar) => {
+    setGroup(prevGroup => {
+      if (!prevGroup) return null;
+      const updatedAthkarList = prevGroup.athkar.map(a => a.id === athkarId ? updateFn(a) : a);
+      const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
+      saveCurrentGroupRef.current(updatedGroup);
+      return updatedGroup;
+    });
+  }, []);
 
-  const handleToggleComplete = (athkarId: string) => {
+  const handleToggleComplete = useCallback((athkarId: string) => {
     updateAthkarInGroup(athkarId, a => ({ ...a, completed: !a.completed, completedCount: !a.completed ? (a.count ?? 1) : 0 }));
-  };
+  }, [updateAthkarInGroup]);
 
-  const handleIncrementCount = (athkarId: string) => {
+  const handleIncrementCount = useCallback((athkarId: string) => {
     updateAthkarInGroup(athkarId, a => {
       const newCount = (a.completedCount ?? 0) + 1;
-      const isCompleted = a.count ? newCount >= a.count : false; // Only complete if count is defined and met
+      const isCompleted = a.count ? newCount >= a.count : false;
       return { ...a, completedCount: newCount, completed: isCompleted };
     });
-  };
+  }, [updateAthkarInGroup]);
 
-  const handleDecrementCount = (athkarId: string) => {
+  const handleDecrementCount = useCallback((athkarId: string) => {
     updateAthkarInGroup(athkarId, a => {
       const newCount = Math.max(0, (a.completedCount ?? 0) - 1);
       const isCompleted = a.count ? newCount >= a.count : false;
       return { ...a, completedCount: newCount, completed: isCompleted };
     });
-  };
+  }, [updateAthkarInGroup]);
   
-  const handleResetCount = (athkarId: string) => {
+  const handleResetCount = useCallback((athkarId: string) => {
     updateAthkarInGroup(athkarId, a => ({ ...a, completedCount: 0, completed: false }));
-  };
+  }, [updateAthkarInGroup]);
 
-  const onDragEndAthkar = (result: DropResult) => {
-    if (!result.destination || !group) return;
-    if (result.destination.index === result.source.index) return;
+  const onDragEndAthkar = useCallback((result: DropResult) => {
+    if (!result.destination) return;
+     setGroup(prevGroup => {
+      if (!prevGroup || !result.destination) return prevGroup;
+      if (result.destination.index === result.source.index) return prevGroup;
 
-    const reorderedAthkar = Array.from(group.athkar);
-    const [movedAthkar] = reorderedAthkar.splice(result.source.index, 1);
-    reorderedAthkar.splice(result.destination.index, 0, movedAthkar);
-    
-    const updatedGroup = { ...group, athkar: reorderedAthkar };
-    setGroup(updatedGroup);
-    saveCurrentGroup(updatedGroup);
-  };
+      const reorderedAthkar = Array.from(prevGroup.athkar);
+      const [movedAthkar] = reorderedAthkar.splice(result.source.index, 1);
+      reorderedAthkar.splice(result.destination.index, 0, movedAthkar);
+      
+      const updatedGroup = { ...prevGroup, athkar: reorderedAthkar };
+      saveCurrentGroupRef.current(updatedGroup);
+      return updatedGroup;
+    });
+  }, []);
 
 
-  if (isLoading) {
+  if (isLoading || !isClient) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -310,19 +331,21 @@ export default function GroupPage() {
         </div>
       </header>
       
-      <DragDropContext onDragEnd={onDragEndAthkar}>
-        <main className="w-full max-w-2xl flex-grow">
-          <AthkarList
-              athkarList={group.athkar}
-              onToggleComplete={handleToggleComplete}
-              onIncrementCount={handleIncrementCount}
-              onDecrementCount={handleDecrementCount}
-              onResetCount={handleResetCount}
-              onEditAthkar={openEditAthkarDialog}
-              onDeleteAthkar={openDeleteAthkarDialog}
-          />
-        </main>
-      </DragDropContext>
+      {isClient && (
+        <DragDropContext onDragEnd={onDragEndAthkar}>
+          <main className="w-full max-w-2xl flex-grow">
+            <AthkarList
+                athkarList={group.athkar}
+                onToggleComplete={handleToggleComplete}
+                onIncrementCount={handleIncrementCount}
+                onDecrementCount={handleDecrementCount}
+                onResetCount={handleResetCount}
+                onEditAthkar={openEditAthkarDialog}
+                onDeleteAthkar={openDeleteAthkarDialog}
+            />
+          </main>
+        </DragDropContext>
+      )}
 
 
       {/* Add Athkar Dialog */}
@@ -402,7 +425,10 @@ export default function GroupPage() {
 
       {/* Edit Athkar Dialog */}
       {editingAthkar && (
-        <Dialog open={isEditAthkarDialogOpen} onOpenChange={setIsEditAthkarDialogOpen}>
+        <Dialog open={isEditAthkarDialogOpen} onOpenChange={(open) => {
+            if (!open) setEditingAthkar(null);
+            setIsEditAthkarDialogOpen(open);
+        }}>
           <DialogContent className="sm:max-w-md" dir="rtl">
             <DialogHeader>
               <DialogTitle>تعديل الذكر</DialogTitle>

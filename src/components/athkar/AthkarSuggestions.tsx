@@ -1,8 +1,9 @@
+
 "use client";
 
 import type { Athkar } from '@/types';
 import { suggestAthkar, type SuggestAthkarInput } from '@/ai/flows/suggest-athkar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { Loader2, Lightbulb } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AthkarSuggestionsProps {
-  allAthkar: Athkar[];
+  allAthkar: Athkar[]; // Assuming this is the list of all athkar from a specific group or context
 }
 
 export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
@@ -20,28 +21,21 @@ export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
 
-  // This state will be used to construct completionHistory from parent or context if needed
-  // For now, we simulate it or assume it's passed correctly
-  const [currentAthkarStatus, setCurrentAthkarStatus] = useState<Athkar[]>(allAthkar);
+  // currentAthkarStatus will be derived from allAthkar prop directly
+  // No need for separate state if allAthkar is always up-to-date from parent
 
-  useEffect(() => {
-    // If Athkar list updates from parent, reflect it here
-    setCurrentAthkarStatus(allAthkar);
-  }, [allAthkar]);
-
-
-  const handleGetSuggestions = async () => {
+  const handleGetSuggestions = useCallback(async () => {
     setIsLoading(true);
     setRecommendations([]);
 
-    const completionHistory = currentAthkarStatus.map(a => ({
-      athkar: a.text, // Using text as identifier, as per flow's potential expectation
+    const completionHistory = allAthkar.map(a => ({
+      athkar: a.arabic, // Use Arabic text as the primary identifier for the athkar
       completed: a.count ? (a.completedCount ?? 0) >= a.count : a.completed,
     }));
 
     const input: SuggestAthkarInput = {
       completionHistory,
-      preferences: preferences || undefined,
+      preferences: preferences.trim() || undefined,
     };
 
     try {
@@ -50,64 +44,76 @@ export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
         setRecommendations(result.recommendations);
         if (result.recommendations.length === 0) {
           toast({
-            title: "No specific suggestions",
-            description: "You're doing great, or try refining your preferences!",
+            title: "لا توجد اقتراحات محددة",
+            description: "أنت تقوم بعمل رائع، أو حاول تحسين تفضيلاتك!",
           });
+        } else {
+            toast({
+                title: "اقتراحات جديدة",
+                description: "تم العثور على اقتراحات أذكار مخصصة لك."
+            })
         }
       } else {
-        throw new Error("No recommendations found in the result.");
+        // This case might mean the flow returned null or an empty object, treat as no recommendations
+        setRecommendations([]);
+        toast({
+            title: "لا توجد اقتراحات",
+            description: "لم يتمكن الذكاء الاصطناعي من إيجاد اقتراحات بناءً على المدخلات الحالية.",
+        });
       }
     } catch (error) {
       console.error("Error fetching suggestions:", error);
       toast({
-        title: "Error",
-        description: "Could not fetch suggestions. Please try again.",
+        title: "خطأ في الاقتراحات",
+        description: "لم نتمكن من جلب الاقتراحات. الرجاء المحاولة مرة أخرى.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [allAthkar, preferences, toast]);
 
   return (
     <Card className="mt-8 shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center text-xl">
           <Lightbulb size={24} className="mr-2 rtl:ml-2 rtl:mr-0 text-accent" />
-          Personalized Athkar Suggestions
+          اقتراحات أذكار مخصصة
         </CardTitle>
         <CardDescription>
-          Get AI-powered recommendations to enhance your Athkar practice.
+          احصل على توصيات مدعومة بالذكاء الاصطناعي لتعزيز ممارستك للأذكار.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
           <Label htmlFor="preferences" className="text-sm font-medium">
-            Your Preferences (Optional)
+            تفضيلاتك (اختياري)
           </Label>
           <Textarea
             id="preferences"
             value={preferences}
             onChange={(e) => setPreferences(e.target.value)}
-            placeholder="e.g., 'Focus on short Athkar', 'More for tranquility', 'Related to gratitude'"
+            placeholder="مثال: 'أذكار قصيرة'، 'للطمأنينة'، 'أذكار الحمد والشكر'"
             className="mt-1"
             rows={3}
+            dir="rtl"
           />
         </div>
-        <Button onClick={handleGetSuggestions} disabled={isLoading} className="w-full sm:w-auto">
+        <Button onClick={handleGetSuggestions} disabled={isLoading || allAthkar.length === 0} className="w-full sm:w-auto">
           {isLoading ? (
             <>
               <Loader2 className="mr-2 rtl:ml-2 rtl:mr-0 h-4 w-4 animate-spin" />
-              Getting Suggestions...
+              جاري جلب الاقتراحات...
             </>
           ) : (
-            "Suggest Athkar"
+            "اقترح أذكار"
           )}
         </Button>
+         {allAthkar.length === 0 && <p className="text-xs text-muted-foreground text-center">أضف بعض الأذكار للمجموعة أولاً لتتمكن من الحصول على اقتراحات.</p>}
       </CardContent>
       {recommendations.length > 0 && (
         <CardFooter className="flex-col items-start gap-2 pt-4 border-t">
-          <h4 className="font-semibold text-md text-primary">Recommendations:</h4>
+          <h4 className="font-semibold text-md text-primary">التوصيات:</h4>
           <ul className="list-disc pl-5 rtl:pr-5 rtl:pl-0 space-y-1 text-sm text-foreground">
             {recommendations.map((rec, index) => (
               <li key={index}>{rec}</li>

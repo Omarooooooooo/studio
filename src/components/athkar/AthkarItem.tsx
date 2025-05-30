@@ -8,7 +8,7 @@ import { CheckCircle2, Circle, PlusCircle, MinusCircle, Repeat, Info, Edit3, Tra
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 
 interface AthkarItemProps {
@@ -38,49 +38,54 @@ export function AthkarItem({
 
   const [isAutoCounting, setIsAutoCounting] = useState(false);
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const stableOnIncrementCountRef = useRef(onIncrementCount);
 
-  const handleMainAction = () => {
-    if (isCountable) {
-      if (currentCompletedCount < athkar.count) {
-        onIncrementCount(athkar.id);
-      }
+  useEffect(() => {
+    stableOnIncrementCountRef.current = onIncrementCount;
+  }, [onIncrementCount]);
+
+  useEffect(() => {
+    if (isAutoCounting && !isFullyCompleted && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
+      autoCountIntervalRef.current = setInterval(() => {
+        stableOnIncrementCountRef.current(athkar.id);
+      }, athkar.readingTimeSeconds * 1000);
     } else {
-      onToggleComplete(athkar.id);
+      if (autoCountIntervalRef.current) {
+        clearInterval(autoCountIntervalRef.current);
+        autoCountIntervalRef.current = null;
+      }
+      if (isFullyCompleted && isAutoCounting) { // If it stopped because it's fully completed
+        setIsAutoCounting(false);
+      }
     }
-  };
-
-  const startAutoCount = () => {
-    if (isAutoCounting || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0 || !isCountable || isFullyCompleted) return;
-
-    setIsAutoCounting(true);
-    autoCountIntervalRef.current = setInterval(() => {
-      onIncrementCount(athkar.id);
-    }, athkar.readingTimeSeconds * 1000);
-  };
-
-  const stopAutoCount = () => {
-    if (autoCountIntervalRef.current) {
-      clearInterval(autoCountIntervalRef.current);
-      autoCountIntervalRef.current = null;
-    }
-    setIsAutoCounting(false);
-  };
-
-  useEffect(() => {
-    // Stop auto-counting if thikr becomes fully completed
-    if (isCountable && currentCompletedCount >= athkar.count && isAutoCounting) {
-      stopAutoCount();
-    }
-  }, [currentCompletedCount, athkar.count, isAutoCounting, isCountable]);
-
-  useEffect(() => {
-    // Cleanup interval on component unmount or if athkar changes
     return () => {
       if (autoCountIntervalRef.current) {
         clearInterval(autoCountIntervalRef.current);
       }
     };
-  }, [athkar.id]);
+  }, [isAutoCounting, isFullyCompleted, isCountable, athkar.id, athkar.readingTimeSeconds]);
+
+
+  const handleMainAction = useCallback(() => {
+    if (isCountable) {
+      if (currentCompletedCount < athkar.count!) { // athkar.count is defined due to isCountable
+        onIncrementCount(athkar.id);
+      }
+    } else {
+      onToggleComplete(athkar.id);
+    }
+  }, [isCountable, currentCompletedCount, athkar.count, athkar.id, onIncrementCount, onToggleComplete]);
+
+
+  const handleToggleAutoCount = useCallback(() => {
+    if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
+      if (isAutoCounting) {
+        setIsAutoCounting(false);
+      } else if (!isFullyCompleted) {
+        setIsAutoCounting(true);
+      }
+    }
+  }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isFullyCompleted]);
 
 
   return (
@@ -162,11 +167,12 @@ export function AthkarItem({
                 <PlusCircle size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
                 {isFullyCompleted ? "مكتمل" : "زيادة"}
               </Button>
-              {athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 && !isFullyCompleted && (
+              {athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 && (
                 <Button
                   variant={isAutoCounting ? "destructive" : "outline"}
                   size="icon"
-                  onClick={isAutoCounting ? stopAutoCount : startAutoCount}
+                  onClick={handleToggleAutoCount}
+                   disabled={(!isAutoCounting && (isFullyCompleted || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
                   className="h-9 w-9"
                   aria-label={isAutoCounting ? "إيقاف التعداد التلقائي" : "بدء التعداد التلقائي"}
                 >
