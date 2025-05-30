@@ -1,144 +1,143 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Athkar } from '@/types';
-import { DAILY_ATHKAR } from '@/constants/athkar';
-import { AthkarList } from '@/components/athkar/AthkarList';
-import { AthkarProgress } from '@/components/athkar/AthkarProgress';
-import { AthkarSuggestions } from '@/components/athkar/AthkarSuggestions';
+import Link from 'next/link';
+import type { AthkarGroup } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sun } from 'lucide-react'; // Icon for app name
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Plus, ListCollapse } from 'lucide-react'; // Added ListCollapse for page icon
+import { useToast } from "@/hooks/use-toast";
 
-// Helper to get today's date string
-const getTodayDateString = () => new Date().toISOString().split('T')[0];
+const LOCAL_STORAGE_KEY = 'athkari_groups';
 
 export default function HomePage() {
-  const [athkarList, setAthkarList] = useState<Athkar[]>([]);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [groups, setGroups] = useState<AthkarGroup[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const { toast } = useToast();
 
-  // Load Athkar from localStorage or initialize
   useEffect(() => {
-    const today = getTodayDateString();
-    const storedAthkarString = localStorage.getItem(`athkari_data_${today}`);
-    if (storedAthkarString) {
+    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (storedGroupsString) {
       try {
-        const storedAthkar = JSON.parse(storedAthkarString) as Athkar[];
-        // Ensure all Athkar from constant list are present, adding new ones if any
-        const synchronizedAthkar = DAILY_ATHKAR.map(defaultThikr => {
-          const found = storedAthkar.find(s => s.id === defaultThikr.id);
-          return found ? {...defaultThikr, ...found} : {...defaultThikr, completed: false, completedCount: 0};
-        });
-        setAthkarList(synchronizedAthkar);
+        setGroups(JSON.parse(storedGroupsString));
       } catch (e) {
-        console.error("Failed to parse stored Athkar:", e);
-        setAthkarList(DAILY_ATHKAR.map(a => ({...a, completed: false, completedCount: 0 })));
+        console.error("Failed to parse stored groups:", e);
+        setGroups([]);
       }
-    } else {
-      // Initialize with default Athkar, ensuring completion status is reset
-      setAthkarList(DAILY_ATHKAR.map(a => ({...a, completed: false, completedCount: 0 })));
     }
   }, []);
 
-  // Save Athkar to localStorage whenever it changes
   useEffect(() => {
-    if (athkarList.length > 0) {
-      const today = getTodayDateString();
-      localStorage.setItem(`athkari_data_${today}`, JSON.stringify(athkarList));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
+  }, [groups]);
+
+  const handleAddGroup = () => {
+    if (!newGroupName.trim()) {
+      toast({
+        title: "خطأ",
+        description: "الرجاء إدخال اسم للمجموعة.",
+        variant: "destructive",
+      });
+      return;
     }
-  }, [athkarList]);
-
-  const handleToggleComplete = useCallback((id: string) => {
-    setAthkarList((prevList) =>
-      prevList.map((thikr) => {
-        if (thikr.id === id) {
-          if (thikr.count && thikr.count > 1) { // For countable Athkar, this resets them
-            return { ...thikr, completed: false, completedCount: 0 };
-          }
-          return { ...thikr, completed: !thikr.completed };
-        }
-        return thikr;
-      })
-    );
-  }, []);
-  
-  const handleIncrementCount = useCallback((id: string) => {
-    setAthkarList((prevList) => 
-      prevList.map((thikr) => {
-        if (thikr.id === id && thikr.count && (thikr.completedCount ?? 0) < thikr.count) {
-          const newCompletedCount = (thikr.completedCount ?? 0) + 1;
-          return { ...thikr, completedCount: newCompletedCount, completed: newCompletedCount >= thikr.count };
-        }
-        return thikr;
-      })
-    );
-  }, []);
-
-  const handleDecrementCount = useCallback((id: string) => {
-    setAthkarList((prevList) =>
-      prevList.map((thikr) => {
-        if (thikr.id === id && thikr.count && (thikr.completedCount ?? 0) > 0) {
-          const newCompletedCount = (thikr.completedCount ?? 0) - 1;
-          return { ...thikr, completedCount: newCompletedCount, completed: newCompletedCount >= thikr.count };
-        }
-        return thikr;
-      })
-    );
-  }, []);
-
-
-  const completedCount = athkarList.filter(a => a.count ? (a.completedCount ?? 0) >= a.count : a.completed).length;
-  const totalCount = athkarList.length;
-  
-  const categories = ["all", ...new Set(DAILY_ATHKAR.map(a => a.category))];
-
-  const filteredAthkar = activeTab === "all" ? athkarList : athkarList.filter(a => a.category === activeTab);
+    const newGroup: AthkarGroup = {
+      id: Date.now().toString(), // Simple unique ID
+      name: newGroupName.trim(),
+    };
+    setGroups((prevGroups) => [...prevGroups, newGroup]);
+    setNewGroupName('');
+    setIsDialogOpen(false);
+    toast({
+      title: "تم بنجاح",
+      description: `تمت إضافة مجموعة "${newGroup.name}".`,
+    });
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
       <header className="w-full max-w-3xl mb-8 text-center">
         <h1 className="text-5xl font-bold text-primary flex items-center justify-center">
-          <Sun className="mr-3 rtl:ml-3 rtl:mr-0 h-12 w-12 text-accent" />
-          Athkari - اذكاري
+          <ListCollapse className="mr-3 rtl:ml-3 rtl:mr-0 h-12 w-12 text-accent" />
+          مجموعات أذكاري
         </h1>
         <p className="text-lg text-muted-foreground mt-2">
-          Your daily companion for remembrance and reflection.
+          أنشئ ونظم مجموعات الأذكار الخاصة بك.
         </p>
       </header>
 
-      <main className="w-full max-w-3xl">
-        <AthkarProgress completedCount={completedCount} totalCount={totalCount} />
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
-          <ScrollArea className="w-full whitespace-nowrap rounded-md">
-            <TabsList className="inline-flex h-auto p-1">
-              {categories.map(category => (
-                <TabsTrigger key={category} value={category} className="capitalize data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  {category === "all" ? "All Athkar" : category}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </ScrollArea>
-          
-          {categories.map(category => (
-            <TabsContent key={category} value={category} className="mt-4">
-               <AthkarList 
-                  athkarList={filteredAthkar} 
-                  onToggleComplete={handleToggleComplete}
-                  onIncrementCount={handleIncrementCount}
-                  onDecrementCount={handleDecrementCount}
-                />
-            </TabsContent>
-          ))}
-        </Tabs>
-
-        <AthkarSuggestions allAthkar={athkarList} />
+      <main className="w-full max-w-3xl flex-grow">
+        {groups.length === 0 ? (
+          <p className="text-center text-muted-foreground py-10 text-xl">
+            لا توجد مجموعات حتى الآن. اضغط على زر '+' لإضافة مجموعتك الأولى!
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {groups.map((group) => (
+              <Link key={group.id} href={`/group/${group.id}`} passHref>
+                <Button variant="outline" className="w-full h-24 text-lg justify-center items-center p-4 shadow-md hover:shadow-lg transition-shadow">
+                  {group.name}
+                </Button>
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button
+            className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto h-16 w-16 rounded-full shadow-lg z-50 text-2xl"
+            size="icon"
+            aria-label="إضافة مجموعة جديدة"
+          >
+            <Plus size={32} />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>إضافة مجموعة أذكار جديدة</DialogTitle>
+            <DialogDescription>
+              أدخل اسمًا لمجموعتك الجديدة. يمكنك إضافة الأذكار إليها لاحقًا.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="group-name" className="text-right rtl:text-left col-span-1">
+                اسم المجموعة
+              </Label>
+              <Input
+                id="group-name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                className="col-span-3"
+                placeholder="مثال: أذكار الصباح والمساء"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">إلغاء</Button>
+            </DialogClose>
+            <Button onClick={handleAddGroup}>حفظ المجموعة</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <footer className="w-full max-w-3xl mt-12 text-center">
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Athkari App. Cherish every moment of remembrance.
+          &copy; {new Date().getFullYear()} Athkari App. كل لحظة ذكر هي كنز.
         </p>
       </footer>
     </div>

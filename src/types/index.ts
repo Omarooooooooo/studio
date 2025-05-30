@@ -7,3 +7,9 @@ export interface Athkar {
   completed: boolean;
   completedCount?: number; // How many times user has completed (if count > 1)
 }
+
+// New type for Athkar Group
+export interface AthkarGroup {
+  id: string;
+  name: string;
+}
