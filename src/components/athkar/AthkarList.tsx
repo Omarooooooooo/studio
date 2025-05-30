@@ -4,11 +4,8 @@
 import type { StoredAthkar } from '@/types';
 import { AthkarItem } from './AthkarItem';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
+import type { AthkarInSession } from '@/app/group/[groupId]/page'; // Corrected import path
 
-interface AthkarInSession extends StoredAthkar {
-  sessionProgress: number;
-  isSessionHidden: boolean;
-}
 
 interface AthkarListProps {
   athkarList: AthkarInSession[];
@@ -44,19 +41,19 @@ export function AthkarList({
   }
 
   return (
-    <Droppable droppableId="athkarDroppable" isDropDisabled={!isSortMode}>
+    <Droppable droppableId="athkarDroppable" isDropDisabled={!athkarList || athkarList.length === 0}>
       {(provided) => (
         <div 
           {...provided.droppableProps}
           ref={provided.innerRef}
         >
           {athkarList.map((thikr, index) => (
-            <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={!isSortMode}>
+            <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={false}>
               {(providedDraggable) => (
                 <div
                   ref={providedDraggable.innerRef}
                   {...providedDraggable.draggableProps}
-                  className={isSortMode ? 'mb-2' : 'mb-4'} // Apply margin here for spacing
+                  className={isSortMode ? 'mb-2' : 'mb-4'}
                 >
                   <AthkarItem
                     athkar={thikr}
@@ -79,3 +76,4 @@ export function AthkarList({
     </Droppable>
   );
 }
+

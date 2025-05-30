@@ -8,11 +8,8 @@ import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, Gr
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
+import type { AthkarInSession } from '@/app/group/[groupId]/page'; // Corrected import path
 
-interface AthkarInSession extends StoredAthkar {
-  sessionProgress: number;
-  isSessionHidden: boolean;
-}
 
 interface AthkarItemProps {
   athkar: AthkarInSession;
@@ -23,7 +20,7 @@ interface AthkarItemProps {
   onDelete: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
   fontSizeMultiplier: number;
-  isSortMode: boolean;
+  isSortMode: boolean; // This prop will now primarily control visual style (compact vs full)
 }
 
 export function AthkarItem({
@@ -43,21 +40,18 @@ export function AthkarItem({
 
   const [isAutoCounting, setIsAutoCounting] = useState(false);
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
   const stableOnIncrementCountRef = useRef(onIncrementCount);
-
-  const [showVirtue, setShowVirtue] = useState(false);
-
   useEffect(() => {
     stableOnIncrementCountRef.current = onIncrementCount;
   }, [onIncrementCount]);
 
+  const [showVirtue, setShowVirtue] = useState(false);
+
+
   useEffect(() => {
     if (isAutoCounting && !isSessionHidden && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       autoCountIntervalRef.current = setInterval(() => {
-        // Check completion status *inside* the interval function
-        // This requires accessing the latest athkar prop or having a callback that checks it
-        // For now, we assume onIncrementCount internally handles stopping if fully completed.
-        // A more robust way would be to pass athkar.isSessionHidden to the effect or check it via a ref.
         if (stableOnIncrementCountRef.current) {
              stableOnIncrementCountRef.current(athkar.id);
         }
@@ -67,7 +61,6 @@ export function AthkarItem({
         clearInterval(autoCountIntervalRef.current);
         autoCountIntervalRef.current = null;
       }
-      // If auto-counting was on but conditions are no longer met (e.g., completed, or became not countable)
       if (isAutoCounting && (isSessionHidden || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
         setIsAutoCounting(false);
       }
@@ -105,20 +98,19 @@ export function AthkarItem({
   const targetCountForProgress = athkar.count || 1;
   const progressPercentage = (currentSessionProgress / targetCountForProgress);
 
-  const baseFontSizeRem = 1.5;
+  const baseFontSizeRem = 1.5; 
   const baseLineHeight = 1.625;
 
   if (isSortMode) {
-    // Simplified view for sort mode
     return (
       <div
         className={cn(
           "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
-          athkar.isSessionHidden ? 'opacity-60' : '' // Show completed items with reduced opacity in sort mode
+          athkar.isSessionHidden ? 'opacity-60' : ''
         )}
       >
         <div
-          {...(dragHandleProps || {})} // Apply drag handle props here
+          {...(dragHandleProps || {})}
           className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
           aria-label="اسحب لترتيب الذكر"
         >
@@ -136,8 +128,6 @@ export function AthkarItem({
         >
           {athkar.arabic}
         </p>
-        {/* Optional: Add a small placeholder on the right to balance the grip icon if needed */}
-        {/* <div className="w-7 h-7"></div> */}
       </div>
     );
   }
@@ -145,19 +135,17 @@ export function AthkarItem({
   return (
     <Card className={cn(
         "w-full shadow-lg hover:shadow-xl transition-shadow duration-200 ease-out",
-        isSessionHidden && !isSortMode ? 'hidden' : 'bg-card', // Hide if completed and not in sort mode
+        isSessionHidden ? 'hidden' : 'bg-card', 
       )}
     >
       <CardHeader className="pb-3 pt-3">
         <div className="flex justify-between items-start">
           <div
+            {...(dragHandleProps || {})} // Always apply dragHandleProps
             className={cn(
-              "p-1 text-muted-foreground",
-              isSortMode ? "cursor-grab hover:text-foreground" : "cursor-default opacity-50" // Style handle based on sort mode
+              "p-1 text-muted-foreground cursor-grab hover:text-foreground" 
             )}
-            // Only spread dragHandleProps if in sort mode and they exist
-            {...(isSortMode && dragHandleProps ? dragHandleProps : {})}
-            aria-label={isSortMode ? "اسحب لترتيب الذكر" : undefined}
+            aria-label={"اسحب لترتيب الذكر"}
           >
             <GripVertical size={20} />
           </div>
@@ -198,7 +186,7 @@ export function AthkarItem({
             <p
               className="text-accent-foreground/90 text-center"
               dir="rtl"
-              style={{ fontSize: `${Math.max(0.75, 0.875 * fontSizeMultiplier)}rem` }} // Ensure min font size
+              style={{ fontSize: `${Math.max(0.75, 0.875 * fontSizeMultiplier)}rem` }}
             >
               {athkar.virtue}
             </p>
@@ -286,7 +274,7 @@ export function AthkarItem({
           </Button>
         )}
       </CardContent>
-      {(athkar.count || athkar.readingTimeSeconds) && !isSortMode && (
+      {(athkar.count || athkar.readingTimeSeconds) && ( // Do not check for !isSortMode here to always show footer
          <CardFooter className="text-xs text-muted-foreground pt-2 pb-3 flex justify-between">
             {athkar.count && athkar.count > 0 && (
               <p className="rtl:text-right">التكرار المطلوب: {athkar.count}</p>
@@ -300,5 +288,3 @@ export function AthkarItem({
     </Card>
   );
 }
-
-    
