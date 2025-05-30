@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
+import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 
 interface AthkarItemProps {
   athkar: Athkar;

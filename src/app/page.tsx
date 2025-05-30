@@ -37,7 +37,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, ListCollapse, MoreHorizontal, Edit2, Trash2, Loader2, GripVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from '@/components/ui/card';
-import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 

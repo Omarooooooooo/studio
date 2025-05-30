@@ -31,7 +31,7 @@ import {
 import { ArrowRight, Plus, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { AthkarList } from '@/components/athkar/AthkarList';
-import { DragDropContext, type DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 

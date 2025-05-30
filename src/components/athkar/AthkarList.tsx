@@ -3,7 +3,7 @@
 
 import type { Athkar } from '@/types';
 import { AthkarItem } from './AthkarItem';
-import { Droppable, Draggable } from 'react-beautiful-dnd';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
 
 interface AthkarListProps {
   athkarList: Athkar[];
