@@ -1,9 +1,10 @@
+
 export interface Athkar {
   id: string;
   arabic: string; // The Athkar text in Arabic
   virtue?: string; // Virtue of the Athkar (فضله)
-  text?: string; // Optional: English translation or further description
-  category?: string; // Optional: e.g., Morning, Evening, After Prayer - less relevant for grouped Athkar
+  text?: string; // Optional: English translation or further description/title
+  category?: string; // Optional: e.g., Morning, Evening, After Prayer
   count?: number; // How many times to recite, if applicable
   readingTimeSeconds?: number; // Reading time in seconds
   completed: boolean; // Completion status
@@ -14,5 +15,5 @@ export interface Athkar {
 export interface AthkarGroup {
   id: string;
   name: string;
-  athkar?: Athkar[]; // Array of Athkar specific to this group
+  athkar: Athkar[]; // Array of Athkar specific to this group, ensured to be initialized
 }

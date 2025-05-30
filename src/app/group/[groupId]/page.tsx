@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { AthkarGroup, Athkar } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,9 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { ArrowRight, Plus } from 'lucide-react';
+import { ArrowRight, Plus, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { AthkarList } from '@/components/athkar/AthkarList';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 
@@ -31,14 +32,13 @@ export default function GroupPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // State for Add Athkar Dialog
   const [isAddAthkarDialogOpen, setIsAddAthkarDialogOpen] = useState(false);
   const [newAthkarArabic, setNewAthkarArabic] = useState('');
   const [newAthkarVirtue, setNewAthkarVirtue] = useState('');
   const [newAthkarCount, setNewAthkarCount] = useState('');
   const [newAthkarReadingTime, setNewAthkarReadingTime] = useState('');
 
-  useEffect(() => {
+  const loadGroup = useCallback(() => {
     if (groupId) {
       const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedGroupsString) {
@@ -48,16 +48,44 @@ export default function GroupPage() {
           if (currentGroup) {
             setGroup({ ...currentGroup, athkar: currentGroup.athkar || [] });
           } else {
-            setGroup(null);
+            setGroup(null); // Group not found
+            toast({ title: "خطأ", description: "المجموعة غير موجودة.", variant: "destructive" });
           }
         } catch (e) {
           console.error("Failed to parse groups from localStorage:", e);
           setGroup(null);
+          toast({ title: "خطأ", description: "فشل تحميل بيانات المجموعة.", variant: "destructive" });
         }
+      } else {
+        setGroup(null); // No groups stored
       }
     }
     setIsLoading(false);
-  }, [groupId]);
+  }, [groupId, toast]);
+
+  useEffect(() => {
+    loadGroup();
+  }, [loadGroup]);
+
+  const saveGroup = useCallback((updatedGroup: AthkarGroup | null) => {
+    if (!updatedGroup) return;
+    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+    let storedGroups: AthkarGroup[] = [];
+    if (storedGroupsString) {
+      try {
+        storedGroups = JSON.parse(storedGroupsString);
+      } catch (e) {
+        console.error("Failed to parse groups from localStorage during save:", e);
+        return;
+      }
+    }
+    const groupIndex = storedGroups.findIndex(g => g.id === updatedGroup.id);
+    if (groupIndex !== -1) {
+      storedGroups[groupIndex] = updatedGroup;
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(storedGroups));
+    }
+  }, []);
+
 
   const handleAddAthkar = () => {
     if (!newAthkarArabic.trim()) {
@@ -87,46 +115,57 @@ export default function GroupPage() {
       completedCount: 0,
     };
 
-    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    let storedGroups: AthkarGroup[] = [];
-    if (storedGroupsString) {
-      try {
-        storedGroups = JSON.parse(storedGroupsString);
-      } catch (e) {
-        console.error("Failed to parse groups from localStorage:", e);
-        toast({ title: "خطأ", description: "حدث خطأ أثناء تحديث المجموعة.", variant: "destructive" });
-        return;
-      }
+    if (group) {
+      const updatedAthkar = [...group.athkar, newAthkarItem];
+      const updatedGroup = { ...group, athkar: updatedAthkar };
+      setGroup(updatedGroup);
+      saveGroup(updatedGroup);
+
+      setNewAthkarArabic('');
+      setNewAthkarVirtue('');
+      setNewAthkarCount('');
+      setNewAthkarReadingTime('');
+      setIsAddAthkarDialogOpen(false);
+      toast({ title: "تم بنجاح", description: "تمت إضافة الذكر إلى المجموعة." });
     }
-
-    const groupIndex = storedGroups.findIndex(g => g.id === groupId);
-    if (groupIndex === -1) {
-      toast({ title: "خطأ", description: "لم يتم العثور على المجموعة.", variant: "destructive" });
-      return;
-    }
-
-    const updatedGroup = { ...storedGroups[groupIndex] };
-    if (!updatedGroup.athkar) {
-      updatedGroup.athkar = [];
-    }
-    updatedGroup.athkar.push(newAthkarItem);
-    storedGroups[groupIndex] = updatedGroup;
-
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(storedGroups));
-    setGroup(updatedGroup); // Update local state
-
-    setNewAthkarArabic('');
-    setNewAthkarVirtue('');
-    setNewAthkarCount('');
-    setNewAthkarReadingTime('');
-    setIsAddAthkarDialogOpen(false);
-    toast({ title: "تم بنجاح", description: "تمت إضافة الذكر إلى المجموعة." });
   };
 
+  const updateAthkarInGroup = (athkarId: string, updateFn: (athkar: Athkar) => Athkar) => {
+    if (group) {
+      const updatedAthkarList = group.athkar.map(a => a.id === athkarId ? updateFn(a) : a);
+      const updatedGroup = { ...group, athkar: updatedAthkarList };
+      setGroup(updatedGroup);
+      saveGroup(updatedGroup);
+    }
+  };
+
+  const handleToggleComplete = (athkarId: string) => {
+    updateAthkarInGroup(athkarId, a => ({ ...a, completed: !a.completed, completedCount: !a.completed ? (a.count ?? 1) : 0 }));
+  };
+
+  const handleIncrementCount = (athkarId: string) => {
+    updateAthkarInGroup(athkarId, a => {
+      const newCount = (a.completedCount ?? 0) + 1;
+      const isCompleted = newCount >= (a.count ?? 1);
+      return { ...a, completedCount: newCount, completed: isCompleted };
+    });
+  };
+
+  const handleDecrementCount = (athkarId: string) => {
+    updateAthkarInGroup(athkarId, a => {
+      const newCount = Math.max(0, (a.completedCount ?? 0) - 1);
+      return { ...a, completedCount: newCount, completed: newCount >= (a.count ?? 1) };
+    });
+  };
+  
+  const handleResetCount = (athkarId: string) => {
+    updateAthkarInGroup(athkarId, a => ({ ...a, completedCount: 0, completed: false }));
+  };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-background text-foreground">
+      <div className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
         <p className="text-lg">جاري تحميل المجموعة...</p>
       </div>
     );
@@ -135,9 +174,9 @@ export default function GroupPage() {
   if (!group) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen p-4 bg-background text-foreground">
-        <p className="text-xl text-destructive mb-6">لم يتم العثور على المجموعة.</p>
+        <p className="text-xl text-destructive mb-6">لم يتم العثور على المجموعة المطلوبة.</p>
         <Button onClick={() => router.push('/')} variant="outline">
-          <ArrowRight className="mr-2 rtl:ml-2 rtl:mr-0" />
+          <ArrowRight className="mr-2 rtl:ml-2 rtl:mr-0 h-4 w-4" />
           العودة إلى الرئيسية
         </Button>
       </div>
@@ -145,11 +184,11 @@ export default function GroupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
+    <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
       <header className="w-full max-w-4xl mb-8">
         <div className="flex justify-between items-center mb-6">
           <Button onClick={() => router.push('/')} variant="outline" size="sm">
-            <ArrowRight className="mr-2 rtl:ml-2 rtl:mr-0 h-4 w-4" />
+            <ArrowRight className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
             العودة للرئيسية
           </Button>
         </div>
@@ -162,37 +201,28 @@ export default function GroupPage() {
           </p>
         </div>
       </header>
-      
-      <main className="w-full max-w-4xl flex-grow">
-        {(!group.athkar || group.athkar.length === 0) ? (
-          <div className="text-center py-10 border-2 border-dashed border-border rounded-lg">
-             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-12 w-12 text-muted-foreground mb-4"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-            <h2 className="text-xl font-semibold text-foreground mb-2">لا توجد أذكار في هذه المجموعة بعد</h2>
-            <p className="text-muted-foreground mb-6">
-              استخدم الزر العائم (+) في أسفل الشاشة لإضافة أول ذكر لهذه المجموعة.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Athkar list will be rendered here in the future */}
-            <p className="text-center text-muted-foreground p-4 border rounded-md">
-              تمت إضافة {group.athkar.length} ذكر / أذكار. (سيتم عرض القائمة هنا قريباً)
-            </p>
-          </div>
-        )}
+
+      <main className="w-full max-w-2xl flex-grow">
+        <AthkarList
+            athkarList={group.athkar}
+            onToggleComplete={handleToggleComplete}
+            onIncrementCount={handleIncrementCount}
+            onDecrementCount={handleDecrementCount}
+            onResetCount={handleResetCount}
+        />
       </main>
 
       <Dialog open={isAddAthkarDialogOpen} onOpenChange={setIsAddAthkarDialogOpen}>
         <DialogTrigger asChild>
           <Button
-            className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto h-16 w-16 rounded-full shadow-lg z-50 text-2xl"
+            className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto h-16 w-16 rounded-full shadow-lg z-50 text-2xl bg-accent hover:bg-accent/90 text-accent-foreground"
             size="icon"
             aria-label="إضافة ذكر جديد"
           >
             <Plus size={32} />
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle>إضافة ذكر جديد إلى "{group.name}"</DialogTitle>
             <DialogDescription>
@@ -201,32 +231,30 @@ export default function GroupPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="athkar-arabic" className="text-right rtl:text-left">نص الذكر (بالعربية)</Label>
+              <Label htmlFor="athkar-arabic">نص الذكر (بالعربية)</Label>
               <Textarea
                 id="athkar-arabic"
                 value={newAthkarArabic}
                 onChange={(e) => setNewAthkarArabic(e.target.value)}
                 placeholder="سبحان الله وبحمده..."
-                dir="rtl"
                 lang="ar"
                 rows={3}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="athkar-virtue" className="text-right rtl:text-left">فضل الذكر (اختياري)</Label>
+              <Label htmlFor="athkar-virtue">فضل الذكر (اختياري)</Label>
               <Textarea
                 id="athkar-virtue"
                 value={newAthkarVirtue}
                 onChange={(e) => setNewAthkarVirtue(e.target.value)}
                 placeholder="مثال: من قاله مائة مرة حطت خطاياه..."
-                dir="rtl"
                 lang="ar"
                 rows={2}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                    <Label htmlFor="athkar-count" className="text-right rtl:text-left">عدد التكرار (اختياري)</Label>
+                    <Label htmlFor="athkar-count">عدد التكرار (اختياري)</Label>
                     <Input
                         id="athkar-count"
                         type="number"
@@ -237,7 +265,7 @@ export default function GroupPage() {
                     />
                 </div>
                 <div className="grid gap-2">
-                    <Label htmlFor="athkar-reading-time" className="text-right rtl:text-left">زمن القراءة/ثانية (اختياري)</Label>
+                    <Label htmlFor="athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
                     <Input
                         id="athkar-reading-time"
                         type="number"
@@ -257,7 +285,7 @@ export default function GroupPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-       
+
       <footer className="w-full max-w-3xl mt-12 text-center">
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} Athkari App.
