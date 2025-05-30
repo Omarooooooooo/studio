@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { AthkarGroup, Athkar as StoredAthkar } from '@/types';
+import type { AthkarGroup, Athkar as StoredAthkar } from '@/types'; // StoredAthkar is the new name
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,11 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff, ScrollText } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
+import type { AthkarLogStore } from '@/types';
 
-const LOCAL_STORAGE_KEY = 'athkari_groups';
+const GROUPS_STORAGE_KEY = 'athkari_groups';
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; // New key for separate log
 const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
 const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
@@ -120,24 +122,24 @@ export default function GroupPage() {
   }, [isHapticsEnabled, isClient]);
 
   
-  const saveStoredGroupsToLocalStorage = useCallback((updatedGroups: AthkarGroup[]) => {
+  const saveGroupsToLocalStorage = useCallback((updatedGroups: AthkarGroup[]) => {
     if (typeof window !== 'undefined') {
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedGroups));
+            localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
         } catch (e) {
             console.error("Failed to save groups to localStorage:", e);
         }
     }
   }, []);
-  const saveStoredGroupsToLocalStorageRef = useRef(saveStoredGroupsToLocalStorage);
+  const saveGroupsToLocalStorageRef = useRef(saveGroupsToLocalStorage);
    useEffect(() => {
-    saveStoredGroupsToLocalStorageRef.current = saveStoredGroupsToLocalStorage;
-  }, [saveStoredGroupsToLocalStorage]);
+    saveGroupsToLocalStorageRef.current = saveGroupsToLocalStorage;
+  }, [saveGroupsToLocalStorage]);
 
 
   const saveCurrentGroupStructure = useCallback((updatedGroup: GroupInSession | null) => {
       if (!updatedGroup || typeof window === 'undefined') return;
-      const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
       let storedGroups: AthkarGroup[] = [];
       if (storedGroupsString) {
         try {
@@ -159,7 +161,7 @@ export default function GroupPage() {
       } else {
          storedGroups.push(groupToSave);
       }
-      saveStoredGroupsToLocalStorageRef.current(storedGroups);
+      saveGroupsToLocalStorageRef.current(storedGroups);
   }, []);
 
    const saveCurrentGroupStructureRef = useRef(saveCurrentGroupStructure);
@@ -171,7 +173,7 @@ export default function GroupPage() {
   const loadGroup = useCallback(() => {
     if (groupId && typeof window !== 'undefined') {
       setIsLoading(true);
-      const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
       if (storedGroupsString) {
         try {
           const storedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
@@ -203,6 +205,29 @@ export default function GroupPage() {
     }
   }, [loadGroup, isClient, groupId]);
 
+  const updateSeparateAthkarLog = useCallback((athkarArabic: string, repetitionsToAdd: number) => {
+    if (typeof window === 'undefined' || repetitionsToAdd <= 0) return;
+    console.log(`LOG_DATA_UPDATE: Updating separate log for "${athkarArabic}" by ${repetitionsToAdd}`);
+    try {
+      const logString = localStorage.getItem(ATHKAR_LOG_STORAGE_KEY);
+      let logData: AthkarLogStore = {};
+      if (logString) {
+        try {
+          logData = JSON.parse(logString);
+        } catch (parseError) {
+          console.error("Failed to parse Athkar log data from localStorage:", parseError);
+          // Potentially reset or handle corrupt data
+        }
+      }
+      logData[athkarArabic] = (logData[athkarArabic] || 0) + repetitionsToAdd;
+      localStorage.setItem(ATHKAR_LOG_STORAGE_KEY, JSON.stringify(logData));
+      console.log(`LOG_DATA_UPDATE: Successfully updated log. New total for "${athkarArabic}": ${logData[athkarArabic]}`);
+    } catch (e) {
+      console.error("Failed to update separate Athkar log in localStorage:", e);
+    }
+  }, []);
+
+
   const handleAddAthkar = useCallback(() => {
     if (!newAthkarArabic.trim()) {
       alert("الرجاء إدخال نص الذكر.");
@@ -226,7 +251,7 @@ export default function GroupPage() {
       virtue: newAthkarVirtue.trim() || undefined,
       count: newAthkarCount.trim() ? count : undefined,
       readingTimeSeconds: newAthkarReadingTime.trim() ? readingTime : undefined,
-      completedCount: 0, 
+      // No completedCount here as it's handled by the separate log
     };
     
     const newAthkarInSession: AthkarInSession = { 
@@ -318,46 +343,44 @@ export default function GroupPage() {
   const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
-      let cumulativeAmountToAdd = 0;
+      let amountToLogToSeparateStorage = 0;
 
       const updatedAthkarList = prevGroup.athkar.map(thikr => {
         if (thikr.id === athkarId) {
           const oldSessionProgress = thikr.sessionProgress;
-          const oldIsSessionHidden = thikr.isSessionHidden;
+          const wasSessionHidden = thikr.isSessionHidden; // Crucial: check *before* update
           const targetCount = thikr.count || 1;
           
-          if (oldIsSessionHidden) { // Already completed and hidden in this session
-            console.log(`INC_HANDLER: Athkar ID: ${athkarId} already hidden in session. No change.`);
+          if (wasSessionHidden) { // Already completed and hidden in this session
             return thikr;
           }
 
           let newSessionProgress = oldSessionProgress + 1;
           let newIsSessionHidden = false;
-
-          console.log(`INC_HANDLER: Athkar ID: ${athkarId}, Target: ${targetCount}, Old Progress: ${oldSessionProgress}, Old Hidden: ${oldIsSessionHidden}`);
-
+          
           if (newSessionProgress >= targetCount) {
             newIsSessionHidden = true;
-            // This is where we'd log to permanent storage if Athkar Log was active
-            // For now, we are not calling updateCumulativeCompletedCountInStorage
-            cumulativeAmountToAdd = targetCount; 
-            console.log(`INC_HANDLER: Athkar ID: ${athkarId} MET COMPLETION in session. Amount to potentially log: ${cumulativeAmountToAdd}`);
+            if (!wasSessionHidden) { // Log only if it *just* became hidden
+                 amountToLogToSeparateStorage = targetCount;
+                 console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) cycle completed. Will log to separate storage: ${amountToLogToSeparateStorage}`);
+            }
           }
           
           const displaySessionProgress = Math.min(newSessionProgress, targetCount);
-          console.log(`INC_HANDLER: Athkar ID: ${athkarId}, New Progress: ${newSessionProgress}, Display Progress: ${displaySessionProgress}, New Hidden: ${newIsSessionHidden}`);
           return { ...thikr, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
         }
         return thikr;
       });
 
-      // if (cumulativeAmountToAdd > 0) {
-        // console.log(`LOG_ACTION: Athkar ${athkarId} completed cycle. Would have logged: ${cumulativeAmountToAdd}`);
-        // updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToAdd); // Athkar Log feature is removed
-      // }
+      if (amountToLogToSeparateStorage > 0) {
+        const completedThikr = updatedAthkarList.find(a => a.id === athkarId);
+        if (completedThikr) {
+            updateSeparateAthkarLog(completedThikr.arabic, amountToLogToSeparateStorage);
+        }
+      }
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, []);
+  }, [updateSeparateAthkarLog]);
 
   const handleDecrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
@@ -383,16 +406,16 @@ export default function GroupPage() {
   const handleToggleComplete = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
-      let cumulativeAmountToAdd = 0;
+      let amountToLogToSeparateStorage = 0;
 
       const updatedAthkarList = prevGroup.athkar.map(thikr => {
-        if (thikr.id === athkarId && (!thikr.count || thikr.count <=1) ) { 
+        if (thikr.id === athkarId && (!thikr.count || thikr.count <=1) ) { // Only for toggleable (non-countable or count=1)
             const wasSessionHidden = thikr.isSessionHidden;
             const newIsSessionHidden = !wasSessionHidden;
             
             if (newIsSessionHidden && !wasSessionHidden) { // Just completed in session
-                cumulativeAmountToAdd = 1;
-                // console.log(`LOG_ACTION: Athkar ${athkarId} (toggleable) COMPLETED CYCLE. Would have logged: ${cumulativeAmountToAdd}`);
+                amountToLogToSeparateStorage = 1;
+                 console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) (toggleable) completed. Will log to separate storage: ${amountToLogToSeparateStorage}`);
             }
             
             return { 
@@ -404,12 +427,15 @@ export default function GroupPage() {
         return thikr;
       });
 
-      //  if (cumulativeAmountToAdd > 0) {
-      //    updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToAdd); // Athkar Log feature is removed
-      //  }
+       if (amountToLogToSeparateStorage > 0) {
+        const completedThikr = updatedAthkarList.find(a => a.id === athkarId);
+        if (completedThikr) {
+            updateSeparateAthkarLog(completedThikr.arabic, amountToLogToSeparateStorage);
+        }
+      }
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, []);
+  }, [updateSeparateAthkarLog]);
 
   const handleResetAllAthkar = useCallback(() => {
     setGroup(prevGroup => {
@@ -419,6 +445,8 @@ export default function GroupPage() {
         sessionProgress: 0, 
         isSessionHidden: false, 
       }));
+      // DO NOT TOUCH THE SEPARATE LOG HERE
+      console.log("SESSION_RESET: All Athkar in current group session reset. Separate log is unaffected.");
       return { ...prevGroup, athkar: updatedAthkarList };
     });
   }, []);
@@ -518,6 +546,9 @@ export default function GroupPage() {
           </div>
           
            <div className="flex items-center gap-1 sm:gap-2">
+            <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
+                <ScrollText className="h-4 w-4" />
+            </Button>
             <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
               <Minus className="h-4 w-4" />
             </Button>
@@ -651,7 +682,7 @@ export default function GroupPage() {
             <DialogHeader>
               <DialogTitle>تعديل الذكر</DialogTitle>
               <DialogDescription>
-                قم بتعديل تفاصيل الذكر. لن يؤثر هذا على سجلك التاريخي للذكر.
+                قم بتعديل تفاصيل الذكر.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

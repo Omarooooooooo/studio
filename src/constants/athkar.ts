@@ -3,54 +3,36 @@ import type { Athkar } from '@/types';
 
 // This data is now primarily for initial setup or examples,
 // as the app manages athkar within user-created groups in localStorage.
-// The `completedCount` should be 0 by default for new athkar.
-// The `completed` field is removed as session completion is managed in UI state.
+// The `completedCount` field is removed from Athkar type for storage.
+// Session completion is managed in UI state, and historical log is separate.
 
 export const DAILY_ATHKAR: Athkar[] = [
   {
     id: 'morning_1',
-    // text: 'Upon waking up', // Removed as per type simplification
     arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ',
-    // category: 'Morning', // Removed
-    completedCount: 0,
   },
   {
     id: 'morning_2',
-    // text: 'Sayyidul Istighfar (Master of Seeking Forgiveness)', // Removed
     arabic: 'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ خَلَقْتَنِي وَأَنَا عَبْدُكَ وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ وَأَبُوءُ لَكَ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ',
-    // category: 'Morning', // Removed
     count: 1,
-    completedCount: 0,
   },
   {
     id: 'morning_3',
-    // text: 'Praise and Glory to Allah', // Removed
     arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، عَدَدَ خَلْقِهِ وَرِضَا نَفْسِهِ وَزِنَةَ عَرْشِهِ وَمِدَادَ كَلِمَاتِهِ',
-    // category: 'Morning', // Removed
     count: 3,
-    completedCount: 0,
   },
   {
     id: 'evening_1',
-    // text: 'Upon reaching evening', // Removed
     arabic: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ',
-    // category: 'Evening', // Removed
-    completedCount: 0,
   },
   {
     id: 'evening_2',
-    // text: 'Seeking refuge in Allah\'s perfect words', // Removed
     arabic: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ',
-    // category: 'Evening', // Removed
     count: 3,
-    completedCount: 0,
   },
   {
     id: 'general_1',
-    // text: 'Sending blessings upon the Prophet ﷺ', // Removed
     arabic: 'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ',
-    // category: 'General', // Removed
-    count: 10, // Example, can be done anytime
-    completedCount: 0,
+    count: 10, 
   },
 ];
