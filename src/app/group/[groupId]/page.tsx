@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { AthkarGroup, Athkar as StoredAthkar } from '@/types';
+import type { AthkarGroup, StoredAthkar, AthkarLogStore } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,10 +28,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff, History } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import type { AthkarLogStore } from '@/types';
+
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
 const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
@@ -51,7 +51,7 @@ interface GroupInSession extends Omit<AthkarGroup, 'athkar'> {
 
 export default function GroupPage() {
   const router = useRouter();
-  const params = useParams() as { groupId?: string };
+  const params = useParams<{ groupId?: string }>();
   const groupId = params.groupId;
 
 
@@ -146,7 +146,7 @@ export default function GroupPage() {
         }
     }
   }, []);
-
+  
   const saveCurrentGroupStructureRef = useRef((updatedGroup: GroupInSession | null) => {
     if (!updatedGroup || typeof window === 'undefined') return;
     const storedGroups = getStoredGroups();
@@ -158,7 +158,7 @@ export default function GroupPage() {
     if (groupIndex !== -1) {
       storedGroups[groupIndex] = groupToSave;
     } else {
-       storedGroups.push(groupToSave); // Should ideally not happen in group page context
+       storedGroups.push(groupToSave); 
     }
     saveStoredGroupsToLocalStorage(storedGroups);
   });
@@ -200,7 +200,7 @@ export default function GroupPage() {
           logData = JSON.parse(logString);
         } catch (parseError) {
           console.error("Failed to parse Athkar log data from localStorage:", parseError);
-          logData = {};
+          logData = {}; // Initialize if parsing fails
         }
       }
       logData[athkarArabic] = (logData[athkarArabic] || 0) + repetitionsToAdd;
@@ -213,18 +213,13 @@ export default function GroupPage() {
 
 
   const handleAddAthkar = useCallback(() => {
-    if (!newAthkarArabic.trim()) {
-      return;
-    }
+    if (!newAthkarArabic.trim()) return;
+    
     const count = parseInt(newAthkarCount, 10);
     const readingTime = parseInt(newAthkarReadingTime, 10);
 
-    if (newAthkarCount.trim() && (isNaN(count) || count < 0)) {
-      return;
-    }
-    if (newAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) {
-      return;
-    }
+    if (newAthkarCount.trim() && (isNaN(count) || count < 0)) return;
+    if (newAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) return;
 
     const newStoredAthkar: StoredAthkar = {
       id: Date.now().toString(),
@@ -253,7 +248,7 @@ export default function GroupPage() {
     setNewAthkarCount('');
     setNewAthkarReadingTime('');
     setIsAddAthkarDialogOpen(false);
-  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, saveCurrentGroupStructureRef]);
+  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue]);
 
   const openEditAthkarDialog = useCallback((athkarToEdit: AthkarInSession) => {
     setEditingAthkar(athkarToEdit);
@@ -265,19 +260,14 @@ export default function GroupPage() {
   }, []);
 
   const handleEditAthkar = useCallback(() => {
-    if (!editingAthkar || !editedAthkarArabic.trim()) {
-      return;
-    }
+    if (!editingAthkar || !editedAthkarArabic.trim()) return;
+
     const count = parseInt(editedAthkarCount, 10);
     const readingTime = parseInt(editedAthkarReadingTime, 10);
 
-    if (editedAthkarCount.trim() && (isNaN(count) || count < 0)) {
-      return;
-    }
-    if (editedAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) {
-      return;
-    }
-
+    if (editedAthkarCount.trim() && (isNaN(count) || count < 0)) return;
+    if (editedAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) return;
+    
     setGroup(prevGroup => {
       if (!prevGroup || !editingAthkar) return prevGroup;
       const updatedAthkarList = prevGroup.athkar.map(a =>
@@ -298,7 +288,7 @@ export default function GroupPage() {
 
     setIsEditAthkarDialogOpen(false);
     setEditingAthkar(null);
-  }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue, saveCurrentGroupStructureRef]);
+  }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue]);
 
   const openDeleteAthkarDialog = useCallback((athkarToDelete: AthkarInSession) => {
     setDeletingAthkar(athkarToDelete);
@@ -314,52 +304,51 @@ export default function GroupPage() {
         return updatedGroup;
      });
     setDeletingAthkar(null);
-  }, [deletingAthkar, saveCurrentGroupStructureRef]);
+  }, [deletingAthkar]);
 
 
  const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
-      if (!prevGroup) return null;
+        if (!prevGroup) return null;
+        let cumulativeAmountToLog = 0;
+        const athkarList = prevGroup.athkar.map(thikr => {
+            if (thikr.id === athkarId) {
+                const oldSessionProgress = thikr.sessionProgress;
+                const wasSessionHidden = thikr.isSessionHidden;
+                const targetCount = thikr.count || 1;
 
-      let cumulativeAmountToLog = 0;
-      const updatedAthkarList = prevGroup.athkar.map(thikr => {
-        if (thikr.id === athkarId) {
-          const wasSessionHidden = thikr.isSessionHidden;
-          const oldSessionProgress = thikr.sessionProgress;
-          const targetCount = thikr.count || 1;
+                if (wasSessionHidden) { // Already completed and hidden in this session
+                    console.log(`INC_HANDLER: Athkar ${thikr.id} already hidden. No session change.`);
+                    return thikr;
+                }
 
-          if (wasSessionHidden) { // Already completed in this session
-            console.log(`INC_HANDLER: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) already hidden. No session change, no log.`);
-            return thikr;
-          }
+                const newSessionProgress = oldSessionProgress + 1;
+                let newIsSessionHidden = false;
 
-          let newSessionProgress = oldSessionProgress + 1;
-          let newIsSessionHidden = false;
-
-          if (newSessionProgress >= targetCount) {
-            newIsSessionHidden = true; // Mark as hidden for this session
-            // Log to separate storage ONLY if it's transitioning to hidden
-            if (!wasSessionHidden) {
-              cumulativeAmountToLog = targetCount;
-              console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) COMPLETED CYCLE. Will log: ${cumulativeAmountToLog}`);
+                if (newSessionProgress >= targetCount) {
+                    newIsSessionHidden = true; // Mark as hidden for this session
+                    // Log to separate storage ONLY if it's transitioning to hidden
+                    if (!wasSessionHidden) { // Check if it wasn't hidden before this increment
+                        cumulativeAmountToLog = targetCount;
+                        console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) COMPLETED CYCLE. Will log: ${cumulativeAmountToLog}`);
+                    }
+                }
+                const displaySessionProgress = Math.min(newSessionProgress, targetCount);
+                return { ...thikr, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
             }
-          }
-          const displaySessionProgress = Math.min(newSessionProgress, targetCount);
-          return { ...thikr, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
-        }
-        return thikr;
-      });
+            return thikr;
+        });
 
-      if (cumulativeAmountToLog > 0) {
-        const completedThikrDetails = prevGroup.athkar.find(a => a.id === athkarId);
-        if (completedThikrDetails) {
-           console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for ${completedThikrDetails.arabic} with amount: ${cumulativeAmountToLog}`);
-           updateSeparateAthkarLog(completedThikrDetails.arabic, cumulativeAmountToLog);
+        if (cumulativeAmountToLog > 0) {
+            const completedThikrDetails = prevGroup.athkar.find(a => a.id === athkarId);
+            if (completedThikrDetails) {
+                console.log(`LOG_ACTION: Calling updateSeparateAthkarLog for ${completedThikrDetails.arabic} with amount: ${cumulativeAmountToLog}`);
+                updateSeparateAthkarLog(completedThikrDetails.arabic, cumulativeAmountToLog);
+            }
         }
-      }
-      return { ...prevGroup, athkar: updatedAthkarList };
+        return { ...prevGroup, athkar: athkarList };
     });
-  }, [updateSeparateAthkarLog]);
+}, [updateSeparateAthkarLog]);
 
 
   const handleDecrementCount = useCallback((athkarId: string) => {
@@ -393,7 +382,7 @@ export default function GroupPage() {
                 const wasSessionHidden = thikr.isSessionHidden;
                 const newIsSessionHidden = !wasSessionHidden;
 
-                if (newIsSessionHidden && !wasSessionHidden) {
+                if (newIsSessionHidden && !wasSessionHidden) { // Log only if transitioning to completed/hidden
                     cumulativeAmountToLog = 1;
                     console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) (toggleable) COMPLETED. Will log: ${cumulativeAmountToLog}`);
                 }
@@ -444,7 +433,7 @@ export default function GroupPage() {
       saveCurrentGroupStructureRef.current(updatedGroup);
       return updatedGroup;
     });
-  }, [saveCurrentGroupStructureRef]);
+  }, []);
 
   const handleIncrementFontSize = useCallback(() => {
     setFontSizeMultiplier(prev => Math.min(prev + 0.1, 2));
@@ -519,9 +508,6 @@ export default function GroupPage() {
                     aria-label={isHapticsEnabled ? "تعطيل الاهتزاز" : "تفعيل الاهتزاز"}
                 >
                     {isHapticsEnabled ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                </Button>
-                 <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
-                    <History className="h-4 w-4" />
                 </Button>
               </>
             )}
@@ -742,3 +728,5 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    
