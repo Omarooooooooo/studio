@@ -29,7 +29,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff } from 'lucide-react';
-// import { useToast } from "@/hooks/use-toast"; // Toasts are being removed
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
@@ -55,7 +54,6 @@ export default function GroupPage() {
 
   const [group, setGroup] = useState<GroupInSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // const { toast } = useToast(); // Toasts are being removed
   const [isClient, setIsClient] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
@@ -128,7 +126,6 @@ export default function GroupPage() {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedGroups));
         } catch (e) {
             console.error("Failed to save groups to localStorage:", e);
-            // Consider a fallback or user notification if saving fails critically
         }
     }
   }, []);
@@ -192,7 +189,6 @@ export default function GroupPage() {
         } catch (e) {
           console.error("Failed to parse groups from localStorage:", e);
           setGroup(null);
-          // toast({ title: "خطأ", description: "فشل تحميل بيانات المجموعة.", variant: "destructive" });
         }
       } else {
         setGroup(null); 
@@ -209,7 +205,6 @@ export default function GroupPage() {
 
   const handleAddAthkar = useCallback(() => {
     if (!newAthkarArabic.trim()) {
-      // toast({ title: "خطأ", description: "الرجاء إدخال نص الذكر.", variant: "destructive" });
       alert("الرجاء إدخال نص الذكر.");
       return;
     }
@@ -217,12 +212,10 @@ export default function GroupPage() {
     const readingTime = parseInt(newAthkarReadingTime, 10);
 
     if (newAthkarCount.trim() && (isNaN(count) || count < 0)) {
-      // toast({ title: "خطأ", description: "عدد التكرار يجب أن يكون رقمًا صحيحًا موجبًا.", variant: "destructive" });
       alert("عدد التكرار يجب أن يكون رقمًا صحيحًا موجبًا.");
       return;
     }
     if (newAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) {
-      // toast({ title: "خطأ", description: "زمن القراءة يجب أن يكون رقمًا صحيحًا موجبًا.", variant: "destructive" });
       alert("زمن القراءة يجب أن يكون رقمًا صحيحًا موجبًا.");
       return;
     }
@@ -255,7 +248,6 @@ export default function GroupPage() {
     setNewAthkarCount('');
     setNewAthkarReadingTime('');
     setIsAddAthkarDialogOpen(false);
-    // toast({ title: "تم بنجاح", description: "تمت إضافة الذكر إلى المجموعة." });
   }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, saveCurrentGroupStructureRef]);
 
   const openEditAthkarDialog = useCallback((athkarToEdit: AthkarInSession) => {
@@ -269,7 +261,6 @@ export default function GroupPage() {
 
   const handleEditAthkar = useCallback(() => {
     if (!editingAthkar || !editedAthkarArabic.trim()) {
-      // toast({ title: "خطأ", description: "الرجاء إدخال نص الذكر.", variant: "destructive" });
       alert("الرجاء إدخال نص الذكر.");
       return;
     }
@@ -277,12 +268,10 @@ export default function GroupPage() {
     const readingTime = parseInt(editedAthkarReadingTime, 10);
 
     if (editedAthkarCount.trim() && (isNaN(count) || count < 0)) {
-       // toast({ title: "خطأ", description: "عدد التكرار يجب أن يكون رقمًا صحيحًا موجبًا.", variant: "destructive" });
        alert("عدد التكرار يجب أن يكون رقمًا صحيحًا موجبًا.");
       return;
     }
     if (editedAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) {
-       // toast({ title: "خطأ", description: "زمن القراءة يجب أن يكون رقمًا صحيحًا موجبًا.", variant: "destructive" });
        alert("زمن القراءة يجب أن يكون رقمًا صحيحًا موجبًا.");
       return;
     }
@@ -307,7 +296,6 @@ export default function GroupPage() {
     
     setIsEditAthkarDialogOpen(false);
     setEditingAthkar(null);
-    // toast({ title: "تم التعديل", description: "تم تعديل الذكر بنجاح." });
   }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue, saveCurrentGroupStructureRef]);
   
   const openDeleteAthkarDialog = useCallback((athkarToDelete: AthkarInSession) => {
@@ -316,7 +304,6 @@ export default function GroupPage() {
 
   const handleDeleteAthkar = useCallback(() => {
     if (!deletingAthkar) return;
-    const athkarText = deletingAthkar.arabic;
      setGroup(prevGroup => {
         if (!prevGroup || !deletingAthkar) return prevGroup;
         const updatedAthkarList = prevGroup.athkar.filter(a => a.id !== deletingAthkar.id);
@@ -325,9 +312,9 @@ export default function GroupPage() {
         return updatedGroup;
      });
     setDeletingAthkar(null);
-    // toast({ title: "تم الحذف", description: `تم حذف الذكر "${athkarText.substring(0,20)}...".`, variant: "destructive" });
   }, [deletingAthkar, saveCurrentGroupStructureRef]);
 
+  
   const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
@@ -335,27 +322,26 @@ export default function GroupPage() {
 
       const updatedAthkarList = prevGroup.athkar.map(thikr => {
         if (thikr.id === athkarId) {
+          const oldSessionProgress = thikr.sessionProgress;
           const oldIsSessionHidden = thikr.isSessionHidden;
+          const targetCount = thikr.count || 1;
+          
           if (oldIsSessionHidden) { // Already completed and hidden in this session
-            console.log(`INC_HANDLER: Athkar ID: ${athkarId} already hidden in session. No change to session progress or storage.`);
+            console.log(`INC_HANDLER: Athkar ID: ${athkarId} already hidden in session. No change.`);
             return thikr;
           }
 
-          const targetCount = thikr.count || 1;
-          const oldSessionProgress = thikr.sessionProgress;
           let newSessionProgress = oldSessionProgress + 1;
-          let newIsSessionHidden = thikr.isSessionHidden; // Should be false if we are here
+          let newIsSessionHidden = false;
 
           console.log(`INC_HANDLER: Athkar ID: ${athkarId}, Target: ${targetCount}, Old Progress: ${oldSessionProgress}, Old Hidden: ${oldIsSessionHidden}`);
 
           if (newSessionProgress >= targetCount) {
-             if (!oldIsSessionHidden) { // Only log and mark for storage update if it wasn't already hidden
-                newIsSessionHidden = true;
-                cumulativeAmountToAdd = targetCount; // Log the full target count when cycle completes
-                console.log(`INC_HANDLER: Athkar ID: ${athkarId} MET COMPLETION in session. cumulativeAmountToAdd = ${cumulativeAmountToAdd}`);
-             } else {
-                console.log(`INC_HANDLER: Athkar ID: ${athkarId} met completion, but was already session hidden. Strange state or rapid clicks?`);
-             }
+            newIsSessionHidden = true;
+            // This is where we'd log to permanent storage if Athkar Log was active
+            // For now, we are not calling updateCumulativeCompletedCountInStorage
+            cumulativeAmountToAdd = targetCount; 
+            console.log(`INC_HANDLER: Athkar ID: ${athkarId} MET COMPLETION in session. Amount to potentially log: ${cumulativeAmountToAdd}`);
           }
           
           const displaySessionProgress = Math.min(newSessionProgress, targetCount);
@@ -365,10 +351,10 @@ export default function GroupPage() {
         return thikr;
       });
 
-      if (cumulativeAmountToAdd > 0) {
-        console.log(`INC_HANDLER: Calling updateCumulativeCompletedCountInStorage for ${athkarId} with amount: ${cumulativeAmountToAdd}`);
-        // updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToAdd); // Removed due to log removal
-      }
+      // if (cumulativeAmountToAdd > 0) {
+        // console.log(`LOG_ACTION: Athkar ${athkarId} completed cycle. Would have logged: ${cumulativeAmountToAdd}`);
+        // updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToAdd); // Athkar Log feature is removed
+      // }
       return { ...prevGroup, athkar: updatedAthkarList };
     });
   }, []);
@@ -406,7 +392,7 @@ export default function GroupPage() {
             
             if (newIsSessionHidden && !wasSessionHidden) { // Just completed in session
                 cumulativeAmountToAdd = 1;
-                console.log(`LOG_ACTION: Athkar ${athkarId} (toggleable) COMPLETED CYCLE. Will log: ${cumulativeAmountToAdd}`);
+                // console.log(`LOG_ACTION: Athkar ${athkarId} (toggleable) COMPLETED CYCLE. Would have logged: ${cumulativeAmountToAdd}`);
             }
             
             return { 
@@ -418,9 +404,9 @@ export default function GroupPage() {
         return thikr;
       });
 
-       if (cumulativeAmountToAdd > 0) {
-         // updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToAdd); // Removed due to log removal
-       }
+      //  if (cumulativeAmountToAdd > 0) {
+      //    updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToAdd); // Athkar Log feature is removed
+      //  }
       return { ...prevGroup, athkar: updatedAthkarList };
     });
   }, []);
@@ -435,10 +421,6 @@ export default function GroupPage() {
       }));
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-    // toast({ 
-    //     title: "تمت إعادة تعيين الجلسة الحالية", 
-    //     description: "تم إظهار جميع الأذكار وإعادة تعيين عداداتها لهذه الجلسة. سجلك الدائم لم يتأثر." 
-    // });
   }, []);
 
   const onDragEndAthkar = useCallback((result: DropResult) => {
