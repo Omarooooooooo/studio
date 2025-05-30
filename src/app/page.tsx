@@ -109,7 +109,7 @@ export default function HomePage() {
           const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
           const normalizedGroups = parsedGroups.map(group => ({
             ...group,
-            athkar: group.athkar || [],
+            athkar: group.athkar || [], // Ensure athkar is always an array
           }));
           setGroups(normalizedGroups);
         } catch (e) {
@@ -379,3 +379,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
