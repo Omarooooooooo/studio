@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { AthkarGroup } from '@/types';
@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger, // Added DialogTrigger
+  DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
 import {
@@ -28,13 +28,63 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, ScrollText } from 'lucide-react';
-// import { useToast } from "@/hooks/use-toast"; // Toasts are being removed
+import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided } from '@hello-pangea/dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 const THEME_STORAGE_KEY = 'athkari-theme';
+
+interface GroupCardItemProps {
+  group: AthkarGroup;
+  provided: DraggableProvided;
+  onEdit: (group: AthkarGroup) => void;
+  onDelete: (group: AthkarGroup) => void;
+}
+
+const GroupCardItem = memo(function GroupCardItem({ group, provided, onEdit, onDelete }: GroupCardItemProps) {
+  return (
+    <div
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      className="mb-4" // Applied margin here
+    >
+      <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 ease-out">
+        <CardContent className="p-4 flex items-center justify-between space-x-2 rtl:space-x-reverse">
+          <div 
+            {...provided.dragHandleProps} 
+            className="p-2 cursor-grab text-muted-foreground hover:text-foreground"
+            aria-label={`اسحب لترتيب مجموعة ${group.name}`}
+          >
+            <GripVertical size={20} />
+          </div>
+          <Link href={`/group/${group.id}`} passHref className="flex-grow mx-2">
+            <span className="text-lg font-semibold text-primary hover:underline cursor-pointer truncate" title={group.name}>
+              {group.name}
+            </span>
+            <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
+          </Link>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" onClick={() => onEdit(group)} aria-label={`تعديل اسم مجموعة ${group.name}`}>
+              <Edit2 className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-red-600 hover:text-red-700" 
+              onClick={() => onDelete(group)} 
+              aria-label={`حذف مجموعة ${group.name}`}
+            >
+              <Trash2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+});
+GroupCardItem.displayName = 'GroupCardItem';
+
 
 export default function HomePage() {
   const router = useRouter();
@@ -49,7 +99,6 @@ export default function HomePage() {
   const [deletingGroup, setDeletingGroup] = useState<AthkarGroup | null>(null);
 
   const [hydrated, setHydrated] = useState(false);
-  // const { toast } = useToast(); // Toasts are being removed
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -68,7 +117,6 @@ export default function HomePage() {
           setGroups([]);
         }
       }
-      // Theme
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
       if (storedTheme) {
         setTheme(storedTheme);
@@ -82,7 +130,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (hydrated && typeof window !== 'undefined') { 
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
+      } catch (e) {
+        console.error("Failed to save groups to localStorage:", e);
+      }
     }
   }, [groups, hydrated]);
 
@@ -99,7 +151,6 @@ export default function HomePage() {
 
   const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
-      // alert("الرجاء إدخال اسم للمجموعة."); // Fallback if toasts are essential for validation
       return;
     }
     const newGroup: AthkarGroup = {
@@ -120,7 +171,6 @@ export default function HomePage() {
 
   const handleEditGroup = useCallback(() => {
     if (!editingGroup || !editedGroupName.trim()) {
-      // alert("الرجاء إدخال اسم صحيح للمجموعة."); // Fallback
       return;
     }
     setGroups(prevGroups => 
@@ -137,7 +187,6 @@ export default function HomePage() {
 
   const handleDeleteGroup = useCallback(() => {
     if (!deletingGroup) return;
-    const groupName = deletingGroup.name;
     setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
     setDeletingGroup(null); 
   }, [deletingGroup]);
@@ -175,12 +224,12 @@ export default function HomePage() {
             >
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </Button>
-          ) : <div className="w-10 h-10"></div> /* Placeholder for left button */ }
+          ) : <div className="w-10 h-10"></div> }
 
         <h1 className="text-4xl font-bold text-primary text-center">
           أذكاري
         </h1>
-         <div className="w-10 h-10"></div> {/* Placeholder, was log button */}
+        <div className="w-10 h-10"></div>
       </header>
 
       <main className="w-full max-w-xl flex-grow">
@@ -196,58 +245,30 @@ export default function HomePage() {
             </Button>
           </div>
         ) : (
-           hydrated && (
             <DragDropContext onDragEnd={onDragEndGroup}>
               <Droppable droppableId="groupsDroppable" isDropDisabled={false}>
-                {(provided) => (
+                {(providedDroppable) => (
                   <div
-                    className="space-y-4"
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
+                    {...providedDroppable.droppableProps}
+                    ref={providedDroppable.innerRef}
                   >
                     {groups.map((group, index) => (
                       <Draggable key={group.id} draggableId={group.id} index={index}>
                         {(providedDraggable) => (
-                          <Card
-                            ref={providedDraggable.innerRef}
-                            {...providedDraggable.draggableProps}
-                            className="shadow-md hover:shadow-lg"
-                          >
-                            <CardContent className="p-4 flex items-center justify-between space-x-2 rtl:space-x-reverse">
-                              <div {...providedDraggable.dragHandleProps} className="p-2 cursor-grab text-muted-foreground hover:text-foreground">
-                                  <GripVertical size={20} />
-                              </div>
-                              <Link href={`/group/${group.id}`} passHref className="flex-grow mx-2">
-                                <span className="text-lg font-semibold text-primary hover:underline cursor-pointer">
-                                  {group.name}
-                                </span>
-                                <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
-                              </Link>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" onClick={() => openEditDialog(group)} aria-label={`تعديل اسم مجموعة ${group.name}`}>
-                                  <Edit2 className="h-5 w-5" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-red-600 hover:text-red-700" 
-                                  onClick={() => openDeleteDialog(group)} 
-                                  aria-label={`حذف مجموعة ${group.name}`}
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
+                          <GroupCardItem
+                            group={group}
+                            provided={providedDraggable}
+                            onEdit={openEditDialog}
+                            onDelete={openDeleteDialog}
+                          />
                         )}
                       </Draggable>
                     ))}
-                    {provided.placeholder}
+                    {providedDroppable.placeholder}
                   </div>
                 )}
               </Droppable>
             </DragDropContext>
-           )
         )}
       </main>
 
