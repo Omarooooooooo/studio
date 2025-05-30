@@ -349,22 +349,20 @@ export default function GroupPage() {
   const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
+      
       let cumulativeAmountToIncrement = 0;
-  
       const updatedAthkarList = prevGroup.athkar.map(a => {
         if (a.id === athkarId) {
-          const currentSessionProgress = a.sessionProgress; // Progress from prevGroup state for this thikr
+          const currentSessionProgress = a.sessionProgress;
           const targetCount = a.count || 1;
-          
           const newSessionProgress = currentSessionProgress + 1;
-          let newIsSessionHidden = a.isSessionHidden; // Current session hidden status from prevGroup
-  
-          // Check if this specific increment action is the one that completes the session
-          // and it wasn't already considered session-hidden from a previous action in this session.
+          let newIsSessionHidden = a.isSessionHidden;
+
+          // Check if this increment completes the thikr FOR THE FIRST TIME IN THIS SESSION
           if (currentSessionProgress < targetCount && newSessionProgress >= targetCount) {
-            if (!a.isSessionHidden) { // Ensure it wasn't already marked session hidden
-                newIsSessionHidden = true;
-                cumulativeAmountToIncrement = targetCount; // Increment cumulative by the full target amount for one cycle
+            if (!a.isSessionHidden) { // Only if it wasn't already session-hidden
+              newIsSessionHidden = true;
+              cumulativeAmountToIncrement = targetCount; 
             }
           }
           
@@ -406,7 +404,7 @@ export default function GroupPage() {
         const updatedAthkarList = prevGroup.athkar.map(a => {
             if (a.id === athkarId && (!a.count || a.count <=1) ) { 
                 const newIsSessionHidden = !a.isSessionHidden;
-                // Only increment cumulative if it's becoming hidden AND it wasn't hidden before (from prevGroup state)
+                // Only increment cumulative if it's becoming hidden AND it wasn't hidden before
                 if (newIsSessionHidden && !a.isSessionHidden) { 
                     shouldIncrementCumulative = true;
                 }
@@ -756,5 +754,7 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    
 
     
