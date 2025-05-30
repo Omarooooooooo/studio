@@ -38,7 +38,6 @@ const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
 const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
 
-// Interface for Athkar object used within this page's state (includes session-specific properties)
 interface AthkarInSession extends StoredAthkar {
   sessionProgress: number;
   isSessionHidden: boolean;
@@ -51,8 +50,8 @@ interface GroupInSession extends Omit<AthkarGroup, 'athkar'> {
 
 export default function GroupPage() {
   const router = useRouter();
-  const { groupId: rawGroupId } = useParams() as { groupId: string };
-  const groupId = rawGroupId;
+  const params = useParams() as { groupId?: string };
+  const groupId = params.groupId;
 
   const [group, setGroup] = useState<GroupInSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,14 +64,12 @@ export default function GroupPage() {
   const [isHapticsEnabled, setIsHapticsEnabled] = useState(true);
 
 
-  // Add Athkar Dialog State
   const [isAddAthkarDialogOpen, setIsAddAthkarDialogOpen] = useState(false);
   const [newAthkarArabic, setNewAthkarArabic] = useState('');
   const [newAthkarVirtue, setNewAthkarVirtue] = useState('');
   const [newAthkarCount, setNewAthkarCount] = useState('');
   const [newAthkarReadingTime, setNewAthkarReadingTime] = useState('');
 
-  // Edit Athkar Dialog State
   const [isEditAthkarDialogOpen, setIsEditAthkarDialogOpen] = useState(false);
   const [editingAthkar, setEditingAthkar] = useState<AthkarInSession | null>(null);
   const [editedAthkarArabic, setEditedAthkarArabic] = useState('');
@@ -80,7 +77,6 @@ export default function GroupPage() {
   const [editedAthkarCount, setEditedAthkarCount] = useState('');
   const [editedAthkarReadingTime, setEditedAthkarReadingTime] = useState('');
 
-  // Delete Athkar Dialog State
   const [deletingAthkar, setDeletingAthkar] = useState<AthkarInSession | null>(null);
 
   useEffect(() => {
@@ -89,7 +85,6 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (isClient) {
-      // Theme
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
       if (storedTheme) {
         setTheme(storedTheme);
@@ -97,10 +92,8 @@ export default function GroupPage() {
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         setTheme(prefersDark ? 'dark' : 'light');
       }
-      // Sound
       const storedSound = localStorage.getItem(SOUND_STORAGE_KEY);
       setIsSoundEnabled(storedSound ? JSON.parse(storedSound) : true);
-      // Haptics
       const storedHaptics = localStorage.getItem(HAPTICS_STORAGE_KEY);
       setIsHapticsEnabled(storedHaptics ? JSON.parse(storedHaptics) : true);
     }
@@ -204,10 +197,10 @@ export default function GroupPage() {
   }, [groupId, toast]);
 
   useEffect(() => {
-    if(isClient){
+    if(isClient && groupId){ // Ensure groupId is defined before loading
         loadGroup();
     }
-  }, [loadGroup, isClient]);
+  }, [loadGroup, isClient, groupId]);
 
   const handleAddAthkar = useCallback(() => {
     if (!newAthkarArabic.trim()) {
@@ -293,6 +286,7 @@ export default function GroupPage() {
             virtue: editedAthkarVirtue.trim() || undefined,
             count: editedAthkarCount.trim() ? count : undefined, 
             readingTimeSeconds: editedAthkarReadingTime.trim() ? readingTime : undefined,
+            // completedCount is NOT reset or changed here, editing details doesn't reset progress
           } 
         : a
       );
@@ -331,13 +325,21 @@ export default function GroupPage() {
     try {
       const storedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
       const groupIndex = storedGroups.findIndex(g => g.id === groupId);
-      if (groupIndex === -1) return;
+      if (groupIndex === -1) {
+        console.error(`updateCumulative: Group with id ${groupId} not found in localStorage.`);
+        return;
+      }
 
       const athkarIndex = storedGroups[groupIndex].athkar.findIndex(a => a.id === athkarToUpdateId);
-      if (athkarIndex === -1) return;
-
-      storedGroups[groupIndex].athkar[athkarIndex].completedCount =
-        (storedGroups[groupIndex].athkar[athkarIndex].completedCount || 0) + incrementBy;
+      if (athkarIndex === -1) {
+        console.error(`updateCumulative: Athkar with id ${athkarToUpdateId} not found in group ${groupId}.`);
+        return;
+      }
+      
+      const currentStoredCompletedCount = storedGroups[groupIndex].athkar[athkarIndex].completedCount || 0;
+      console.log(`STORAGE: Athkar ${athkarToUpdateId} current completedCount: ${currentStoredCompletedCount}. Incrementing by: ${incrementBy}`);
+      storedGroups[groupIndex].athkar[athkarIndex].completedCount = currentStoredCompletedCount + incrementBy;
+      console.log(`STORAGE: Athkar ${athkarToUpdateId} new completedCount: ${storedGroups[groupIndex].athkar[athkarIndex].completedCount}`);
       
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(storedGroups));
     } catch (e) {
@@ -346,37 +348,49 @@ export default function GroupPage() {
     }
   }, [groupId, toast]);
 
-  const handleIncrementCount = useCallback((athkarId: string) => {
-    setGroup(prevGroup => {
-      if (!prevGroup) return null;
-      
-      let cumulativeAmountToIncrement = 0;
-      const updatedAthkarList = prevGroup.athkar.map(a => {
-        if (a.id === athkarId) {
-          const currentSessionProgress = a.sessionProgress;
-          const targetCount = a.count || 1;
-          const newSessionProgress = currentSessionProgress + 1;
-          let newIsSessionHidden = a.isSessionHidden;
+const handleIncrementCount = useCallback((athkarId: string) => {
+  setGroup(prevGroup => {
+    if (!prevGroup) return null;
+    
+    let cumulativeAmountToIncrement = 0;
+    const updatedAthkarList = prevGroup.athkar.map(a => {
+      if (a.id === athkarId) {
+        const targetCount = a.count || 1;
+        const currentSessionProgress = a.sessionProgress;
+        let newIsSessionHidden = a.isSessionHidden; // Start with current session hidden status
 
-          // Check if this increment completes the thikr FOR THE FIRST TIME IN THIS SESSION
-          if (currentSessionProgress < targetCount && newSessionProgress >= targetCount) {
-            if (!a.isSessionHidden) { // Only if it wasn't already session-hidden
-              newIsSessionHidden = true;
-              cumulativeAmountToIncrement = targetCount; 
-            }
+        // Log current state before logic
+        console.log(`INC: Athkar ID: ${a.id}, Current Progress: ${currentSessionProgress}, Is Hidden: ${newIsSessionHidden}, Target: ${targetCount}`);
+
+        if (!newIsSessionHidden) { // Only process if not already hidden in this session
+          const newSessionProgress = currentSessionProgress + 1;
+
+          if (newSessionProgress >= targetCount) {
+            // This is the completion event for the session
+            newIsSessionHidden = true;
+            cumulativeAmountToIncrement = targetCount; 
+            console.log(`INC: Athkar ID: ${a.id} SESSION COMPLETED. Will increment storage by: ${targetCount}`);
           }
           
-          return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHidden };
+          const displaySessionProgress = Math.min(newSessionProgress, targetCount);
+          return { ...a, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
         }
-        return a;
-      });
-  
-      if (cumulativeAmountToIncrement > 0) {
-        updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToIncrement);
+        // If already session-hidden, no change to sessionProgress or cumulative count from this increment call
+        return { ...a }; 
       }
-      return { ...prevGroup, athkar: updatedAthkarList };
+      return a;
     });
-  }, [updateCumulativeCompletedCountInStorage]);
+
+    if (cumulativeAmountToIncrement > 0) {
+      console.log(`INC: Calling updateCumulativeCompletedCountInStorage for ${athkarId} with amount: ${cumulativeAmountToIncrement}`);
+      updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToIncrement);
+    } else {
+      console.log(`INC: No cumulative update for ${athkarId} this time.`);
+    }
+    return { ...prevGroup, athkar: updatedAthkarList };
+  });
+}, [updateCumulativeCompletedCountInStorage]);
+
 
   const handleDecrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
@@ -385,8 +399,12 @@ export default function GroupPage() {
         if (a.id === athkarId) {
           const newSessionProgress = Math.max(0, a.sessionProgress - 1);
           const targetCount = a.count || 1;
+          let newIsSessionHidden = a.isSessionHidden;
+
           // If it was hidden (session completed) and now progress is less than target, unhide it for the session
-          const newIsSessionHidden = (a.isSessionHidden && newSessionProgress < targetCount) ? false : a.isSessionHidden;
+          if (a.isSessionHidden && newSessionProgress < targetCount) {
+            newIsSessionHidden = false;
+          }
           
           return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHidden };
         }
@@ -399,22 +417,29 @@ export default function GroupPage() {
   const handleToggleComplete = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
         if (!prevGroup) return null;
-        let shouldIncrementCumulative = false;
+        let cumulativeAmountToIncrement = 0;
 
         const updatedAthkarList = prevGroup.athkar.map(a => {
             if (a.id === athkarId && (!a.count || a.count <=1) ) { 
-                const newIsSessionHidden = !a.isSessionHidden;
-                // Only increment cumulative if it's becoming hidden AND it wasn't hidden before
-                if (newIsSessionHidden && !a.isSessionHidden) { 
-                    shouldIncrementCumulative = true;
+                const wasSessionHidden = a.isSessionHidden;
+                const newIsSessionHidden = !wasSessionHidden;
+                
+                console.log(`TOGGLE: Athkar ID: ${a.id}, Was Hidden: ${wasSessionHidden}, New Hidden: ${newIsSessionHidden}`);
+
+                if (newIsSessionHidden && !wasSessionHidden) { 
+                    cumulativeAmountToIncrement = 1; 
+                    console.log(`TOGGLE: Athkar ID: ${a.id} SESSION COMPLETED. Will increment storage by: 1`);
                 }
                 return { ...a, isSessionHidden: newIsSessionHidden, sessionProgress: newIsSessionHidden ? (a.count || 1) : 0 };
             }
             return a;
         });
         
-        if (shouldIncrementCumulative) {
-            updateCumulativeCompletedCountInStorage(athkarId, 1); // Increment by 1 for non-countable/count=1
+        if (cumulativeAmountToIncrement > 0) {
+            console.log(`TOGGLE: Calling updateCumulativeCompletedCountInStorage for ${athkarId} with amount: ${cumulativeAmountToIncrement}`);
+            updateCumulativeCompletedCountInStorage(athkarId, cumulativeAmountToIncrement);
+        } else {
+            console.log(`TOGGLE: No cumulative update for ${athkarId} this time.`);
         }
         return { ...prevGroup, athkar: updatedAthkarList };
     });
@@ -544,7 +569,7 @@ export default function GroupPage() {
             </Button>
             <Button 
               onClick={toggleSortMode} 
-              variant="outline" 
+              variant={isSortMode ? "secondary" : "outline"}
               size="icon" 
               aria-label={isSortMode ? "الخروج من وضع الترتيب" : "الدخول إلى وضع الترتيب"}
               className={isSortMode ? "bg-accent text-accent-foreground" : ""}
@@ -754,7 +779,5 @@ export default function GroupPage() {
     </div>
   );
 }
-
-    
 
     
