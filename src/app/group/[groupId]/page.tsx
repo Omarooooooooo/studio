@@ -28,12 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
+const THEME_STORAGE_KEY = 'athkari-theme';
 
 export default function GroupPage() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function GroupPage() {
   const [isClient, setIsClient] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
 
   // Add Athkar Dialog State
@@ -69,6 +71,29 @@ export default function GroupPage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
+      if (storedTheme) {
+        setTheme(storedTheme);
+      } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setTheme(prefersDark ? 'dark' : 'light');
+      }
+    }
+  }, [isClient]);
+
+  useEffect(() => {
+    if (isClient) {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+  }, [theme, isClient]);
 
 
   const saveGroupsToLocalStorage = useCallback((allGroups: AthkarGroup[]) => {
@@ -346,10 +371,21 @@ export default function GroupPage() {
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
       <header className="w-full max-w-4xl mb-8">
         <div className="flex justify-between items-center mb-6">
-          <Button onClick={() => router.push('/')} variant="outline" size="sm">
-            <ArrowRight className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-            العودة للرئيسية
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => router.push('/')} variant="outline" size="icon" aria-label="العودة للرئيسية">
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            {isClient && (
+                <Button 
+                    onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+                    variant="outline" 
+                    size="icon" 
+                    aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
+                >
+                    {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                </Button>
+            )}
+          </div>
            <div className="flex items-center gap-2">
             <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
               <Minus className="h-4 w-4" />
@@ -577,5 +613,3 @@ export default function GroupPage() {
     </div>
   );
 }
-
-    
