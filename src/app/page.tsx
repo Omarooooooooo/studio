@@ -72,11 +72,11 @@ export default function HomePage() {
         }
       }
     }
-    setHydrated(true); // Set hydrated to true after attempting to load from localStorage
+    setHydrated(true); 
   }, []);
 
   useEffect(() => {
-    if (hydrated && typeof window !== 'undefined') { // Only save if hydrated
+    if (hydrated && typeof window !== 'undefined') { 
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
     }
   }, [groups, hydrated]);
@@ -138,7 +138,7 @@ export default function HomePage() {
   const handleDeleteGroup = useCallback(() => {
     if (!deletingGroup) return;
     setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
-    setDeletingGroup(null); // Close dialog after deletion
+    setDeletingGroup(null); 
     toast({
       title: "تم الحذف",
       description: `تم حذف مجموعة "${deletingGroup.name}".`,
@@ -192,9 +192,9 @@ export default function HomePage() {
             </Button>
           </div>
         ) : (
-          hydrated && ( // Only render DragDropContext on client after hydration
+          hydrated && ( 
             <DragDropContext onDragEnd={onDragEndGroup}>
-              <Droppable droppableId="groupsDroppable">
+              <Droppable droppableId="groupsDroppable" isDropDisabled={false}>
                 {(provided) => (
                   <div
                     className="space-y-4"
@@ -234,7 +234,7 @@ export default function HomePage() {
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
                                     className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
-                                    onClick={() => openDeleteDialog(group)} // Changed to openDeleteDialog
+                                    onClick={() => openDeleteDialog(group)} 
                                     >
                                     <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
                                     حذف المجموعة

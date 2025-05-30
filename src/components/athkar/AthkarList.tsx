@@ -37,7 +37,7 @@ export function AthkarList({
   }
 
   return (
-    <Droppable droppableId="athkarDroppable">
+    <Droppable droppableId="athkarDroppable" isDropDisabled={false}>
       {(provided) => (
         <div 
           className="space-y-6"
