@@ -16,8 +16,10 @@ export interface AthkarGroup {
   athkar: Athkar[]; // Array of Athkar objects as defined above
 }
 
-// Type for Athkar Log entry
-export interface AthkarLogEntry {
-  arabic: string;
-  totalCompleted: number;
-}
+// Type for Athkar Log entry - REMOVED
+// export interface AthkarLogEntry {
+//   arabic: string;
+//   totalCompleted: number;
+// }
+
+    

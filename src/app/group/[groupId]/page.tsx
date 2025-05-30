@@ -120,11 +120,6 @@ export default function GroupPage() {
     }
   }, [isHapticsEnabled, isClient]);
 
-  const saveStoredGroupsToLocalStorage = useCallback((allGroups: AthkarGroup[]) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allGroups));
-    }
-  }, []);
   
   const saveCurrentGroupStructure = useCallback((updatedGroup: GroupInSession | null) => {
       if (!updatedGroup || typeof window === 'undefined') return;
@@ -150,8 +145,8 @@ export default function GroupPage() {
       } else {
          storedGroups.push(groupToSave);
       }
-      saveStoredGroupsToLocalStorage(storedGroups);
-  }, [saveStoredGroupsToLocalStorage]);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(storedGroups));
+  }, []);
 
    const saveCurrentGroupStructureRef = useRef(saveCurrentGroupStructure);
    useEffect(() => {
@@ -308,71 +303,32 @@ export default function GroupPage() {
     toast({ title: "تم الحذف", description: "تم حذف الذكر من المجموعة.", variant: "destructive" });
   }, [deletingAthkar, toast]);
 
-  const updateCumulativeCompletedCountInStorage = useCallback((athkarToUpdateId: string, amountToAdd: number) => {
-    if (typeof window === 'undefined' || amountToAdd === 0) return;
-    console.log(`LOG_UPDATE: Attempting to update cumulative for ${athkarToUpdateId} by ${amountToAdd}`);
-    
-    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!storedGroupsString) return;
-
-    try {
-      const storedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
-      const groupIndex = storedGroups.findIndex(g => g.id === groupId);
-      if (groupIndex === -1) return;
-
-      const athkarIndex = storedGroups[groupIndex].athkar.findIndex(a => a.id === athkarToUpdateId);
-      if (athkarIndex === -1) return;
-      
-      const currentStoredCompletedCount = storedGroups[groupIndex].athkar[athkarIndex].completedCount || 0;
-      storedGroups[groupIndex].athkar[athkarIndex].completedCount = currentStoredCompletedCount + amountToAdd;
-      
-      console.log(`LOG_UPDATE: Athkar ${athkarToUpdateId} new stored completedCount: ${storedGroups[groupIndex].athkar[athkarIndex].completedCount}`);
-      saveStoredGroupsToLocalStorage(storedGroups); // Save all groups back
-
-    } catch (e) {
-      console.error("LOG_UPDATE: Failed to update cumulative count in localStorage:", e);
-      toast({ title: "خطأ في تحديث السجل", description: "فشل تحديث السجل الدائم للذكر.", variant: "destructive" });
-    }
-  }, [groupId, saveStoredGroupsToLocalStorage, toast]);
 
   const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
-      
-      let amountToLog = 0; 
+
       const updatedAthkarList = prevGroup.athkar.map(thikr => {
         if (thikr.id === athkarId) {
-          const targetCount = thikr.count || 1;
-          // Crucially, check session state *before* this increment
-          const wasSessionHidden = thikr.isSessionHidden; 
-          const oldSessionProgress = thikr.sessionProgress;
+          const oldIsSessionHidden = thikr.isSessionHidden;
+          if (oldIsSessionHidden) return thikr; // Already completed in session
 
-          let newSessionProgress = thikr.sessionProgress;
+          const targetCount = thikr.count || 1;
+          let newSessionProgress = thikr.sessionProgress + 1;
           let newIsSessionHidden = thikr.isSessionHidden;
 
-          if (!wasSessionHidden) { // Only process if not already session-completed
-            newSessionProgress = oldSessionProgress + 1;
-
-            if (newSessionProgress >= targetCount) {
-              newIsSessionHidden = true; // Mark as session-completed
-              amountToLog = targetCount; // Log the full count for this cycle
-              console.log(`LOG_ACTION: Athkar ${thikr.id} COMPLETED CYCLE. Will log: ${amountToLog}`);
-            }
+          if (newSessionProgress >= targetCount) {
+            newIsSessionHidden = true;
+            // Removed direct update to localStorage for completedCount from here
           }
-          // Visual progress should not exceed targetCount in the UI for this session
           const displaySessionProgress = Math.min(newSessionProgress, targetCount);
           return { ...thikr, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
         }
         return thikr;
       });
-
-      if (amountToLog > 0) {
-        updateCumulativeCompletedCountInStorage(athkarId, amountToLog);
-      }
-      
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, [updateCumulativeCompletedCountInStorage]);
+  }, []);
 
   const handleDecrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
@@ -385,7 +341,7 @@ export default function GroupPage() {
           let newIsSessionHidden = a.isSessionHidden;
 
           if (a.isSessionHidden && newSessionProgress < targetCount) {
-            newIsSessionHidden = false; // Unhide if progress drops below target
+            newIsSessionHidden = false; 
           }
           return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHidden };
         }
@@ -398,17 +354,12 @@ export default function GroupPage() {
   const handleToggleComplete = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
         if (!prevGroup) return null;
-        let amountToLog = 0;
-
         const updatedAthkarList = prevGroup.athkar.map(thikr => {
             if (thikr.id === athkarId && (!thikr.count || thikr.count <=1) ) { 
                 const wasSessionHidden = thikr.isSessionHidden;
                 const newIsSessionHidden = !wasSessionHidden;
                 
-                if (newIsSessionHidden && !wasSessionHidden) { // Just completed this session
-                    amountToLog = 1; 
-                    console.log(`LOG_ACTION: Athkar (toggle) ${thikr.id} COMPLETED CYCLE. Will log: ${amountToLog}`);
-                }
+                // Removed direct update to localStorage for completedCount from here
                 
                 return { 
                     ...thikr, 
@@ -418,13 +369,9 @@ export default function GroupPage() {
             }
             return thikr;
         });
-        
-        if (amountToLog > 0) {
-            updateCumulativeCompletedCountInStorage(athkarId, amountToLog);
-        }
         return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, [updateCumulativeCompletedCountInStorage]);
+  }, []);
 
   const handleResetAllAthkar = useCallback(() => {
     setGroup(prevGroup => {
@@ -434,8 +381,6 @@ export default function GroupPage() {
         sessionProgress: 0, 
         isSessionHidden: false, 
       }));
-      // IMPORTANT: This does NOT change the cumulative completedCount in localStorage.
-      // It only resets the session state.
       return { ...prevGroup, athkar: updatedAthkarList };
     });
     toast({ 
@@ -753,3 +698,5 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    

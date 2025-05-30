@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, ScrollText } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
@@ -186,6 +186,10 @@ export default function HomePage() {
   return (
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
       <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
+        <div className="w-10"></div> {/* Placeholder for left spacing */}
+        <h1 className="text-4xl font-bold text-primary">
+          أذكاري
+        </h1>
         {hydrated && (
           <Button 
               onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
@@ -196,18 +200,7 @@ export default function HomePage() {
               {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
         )}
-        {!hydrated && <div className="w-10 h-10"></div>} {/* Placeholder for spacing */}
-        <h1 className="text-4xl font-bold text-primary">
-          أذكاري
-        </h1>
-        <Button 
-            onClick={() => router.push('/athkar-log')} 
-            variant="outline" 
-            size="icon" 
-            aria-label="عرض سجل الأذكار"
-        >
-            <ScrollText className="h-5 w-5" />
-        </Button>
+        {!hydrated && <div className="w-10 h-10"></div>} {/* Placeholder for right button */}
       </header>
 
       <main className="w-full max-w-xl flex-grow">
@@ -223,6 +216,7 @@ export default function HomePage() {
             </Button>
           </div>
         ) : (
+           hydrated && (
             <DragDropContext onDragEnd={onDragEndGroup}>
               <Droppable droppableId="groupsDroppable" isDropDisabled={false}>
                 {(provided) => (
@@ -273,6 +267,7 @@ export default function HomePage() {
                 )}
               </Droppable>
             </DragDropContext>
+           )
         )}
       </main>
 
@@ -379,3 +374,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
