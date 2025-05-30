@@ -4,7 +4,8 @@
 import type { StoredAthkar } from '@/types';
 import { AthkarItem } from './AthkarItem';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
-import type { AthkarInSession } from '@/app/group/[groupId]/page'; // Corrected import path
+import type { AthkarInSession } from '@/app/group/[groupId]/page'; 
+import { cn } from '@/lib/utils';
 
 
 interface AthkarListProps {
@@ -41,32 +42,30 @@ export function AthkarList({
   }
 
   return (
-    <Droppable droppableId="athkarDroppable" isDropDisabled={!athkarList || athkarList.length === 0}>
+    <Droppable droppableId="athkarDroppable" isDropDisabled={false}>
       {(provided) => (
         <div 
           {...provided.droppableProps}
           ref={provided.innerRef}
+          className={cn(isSortMode ? "space-y-2" : "space-y-4")} // Apply space-y here
         >
           {athkarList.map((thikr, index) => (
             <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={false}>
               {(providedDraggable) => (
-                <div
-                  ref={providedDraggable.innerRef}
-                  {...providedDraggable.draggableProps}
-                  className={isSortMode ? 'mb-2' : 'mb-4'}
-                >
-                  <AthkarItem
-                    athkar={thikr}
-                    onToggleComplete={onToggleComplete}
-                    onIncrementCount={onIncrementCount}
-                    onDecrementCount={onDecrementCount}
-                    onEdit={() => onEditAthkar(thikr)}
-                    onDelete={() => onDeleteAthkar(thikr)}
-                    dragHandleProps={providedDraggable.dragHandleProps}
-                    fontSizeMultiplier={fontSizeMultiplier}
-                    isSortMode={isSortMode}
-                  />
-                </div>
+                // AthkarItem is now the direct child that receives these props
+                <AthkarItem
+                  ref={providedDraggable.innerRef} // Pass ref to AthkarItem
+                  draggableProps={providedDraggable.draggableProps} // Pass draggableProps
+                  athkar={thikr}
+                  onToggleComplete={onToggleComplete}
+                  onIncrementCount={onIncrementCount}
+                  onDecrementCount={onDecrementCount}
+                  onEdit={() => onEditAthkar(thikr)}
+                  onDelete={() => onDeleteAthkar(thikr)}
+                  dragHandleProps={providedDraggable.dragHandleProps}
+                  fontSizeMultiplier={fontSizeMultiplier}
+                  isSortMode={isSortMode}
+                />
               )}
             </Draggable>
           ))}
@@ -76,4 +75,3 @@ export function AthkarList({
     </Droppable>
   );
 }
-
