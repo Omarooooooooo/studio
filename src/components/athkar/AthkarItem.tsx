@@ -4,10 +4,12 @@
 import type { Athkar } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, PlusCircle, MinusCircle, Repeat, Info } from 'lucide-react';
+import { CheckCircle2, Circle, PlusCircle, MinusCircle, Repeat, Info, Edit3, Trash2, Play, Pause, GripVertical } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { useState, useEffect, useRef } from 'react';
+import type { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 
 interface AthkarItemProps {
   athkar: Athkar;
@@ -15,6 +17,9 @@ interface AthkarItemProps {
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
   onResetCount: (id: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
 }
 
 export function AthkarItem({
@@ -22,11 +27,17 @@ export function AthkarItem({
   onToggleComplete,
   onIncrementCount,
   onDecrementCount,
-  onResetCount
+  onResetCount,
+  onEdit,
+  onDelete,
+  dragHandleProps
 }: AthkarItemProps) {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 0;
   const currentCompletedCount = athkar.completedCount ?? 0;
   const isFullyCompleted = isCountable ? currentCompletedCount >= athkar.count : athkar.completed;
+
+  const [isAutoCounting, setIsAutoCounting] = useState(false);
+  const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMainAction = () => {
     if (isCountable) {
@@ -38,27 +49,78 @@ export function AthkarItem({
     }
   };
 
+  const startAutoCount = () => {
+    if (isAutoCounting || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0 || !isCountable || isFullyCompleted) return;
+
+    setIsAutoCounting(true);
+    autoCountIntervalRef.current = setInterval(() => {
+      onIncrementCount(athkar.id);
+    }, athkar.readingTimeSeconds * 1000);
+  };
+
+  const stopAutoCount = () => {
+    if (autoCountIntervalRef.current) {
+      clearInterval(autoCountIntervalRef.current);
+      autoCountIntervalRef.current = null;
+    }
+    setIsAutoCounting(false);
+  };
+
+  useEffect(() => {
+    // Stop auto-counting if thikr becomes fully completed
+    if (isCountable && currentCompletedCount >= athkar.count && isAutoCounting) {
+      stopAutoCount();
+    }
+  }, [currentCompletedCount, athkar.count, isAutoCounting, isCountable]);
+
+  useEffect(() => {
+    // Cleanup interval on component unmount or if athkar changes
+    return () => {
+      if (autoCountIntervalRef.current) {
+        clearInterval(autoCountIntervalRef.current);
+      }
+    };
+  }, [athkar.id]);
+
+
   return (
     <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted ? 'bg-primary/10 border-primary/50' : 'bg-card'}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          {athkar.text && <CardTitle className="text-lg font-semibold text-primary">{athkar.text}</CardTitle>}
-          {athkar.virtue && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent-foreground">
-                  <Info size={20} />
-                  <span className="sr-only">عرض فضل الذكر</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent side="left" className="w-80 text-sm p-4 shadow-md" dir="rtl">
-                <p className="font-semibold mb-2 text-primary">فضل الذكر:</p>
-                <p>{athkar.virtue}</p>
-              </PopoverContent>
-            </Popover>
-          )}
+          <div className="flex items-center">
+            {dragHandleProps && (
+              <div {...dragHandleProps} className="p-1 cursor-grab text-muted-foreground hover:text-foreground mr-2 rtl:ml-2 rtl:mr-0">
+                <GripVertical size={20} />
+              </div>
+            )}
+            {athkar.text && <CardTitle className="text-lg font-semibold text-primary">{athkar.text}</CardTitle>}
+          </div>
+          <div className="flex items-center gap-1">
+            {athkar.virtue && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent-foreground h-8 w-8">
+                    <Info size={18} />
+                    <span className="sr-only">عرض فضل الذكر</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="left" className="w-80 text-sm p-4 shadow-md" dir="rtl">
+                  <p className="font-semibold mb-2 text-primary">فضل الذكر:</p>
+                  <p>{athkar.virtue}</p>
+                </PopoverContent>
+              </Popover>
+            )}
+            <Button variant="ghost" size="icon" onClick={onEdit} className="text-muted-foreground hover:text-blue-500 h-8 w-8">
+              <Edit3 size={18} />
+              <span className="sr-only">تعديل الذكر</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onDelete} className="text-muted-foreground hover:text-red-500 h-8 w-8">
+              <Trash2 size={18} />
+              <span className="sr-only">حذف الذكر</span>
+            </Button>
+          </div>
         </div>
-        {athkar.category && <CardDescription className="text-xs text-muted-foreground">{athkar.category}</CardDescription>}
+        {athkar.category && <CardDescription className="text-xs text-muted-foreground mt-1">{athkar.category}</CardDescription>}
       </CardHeader>
 
       <CardContent className="pb-4">
@@ -77,12 +139,12 @@ export function AthkarItem({
               className="h-3 [&>div]:bg-green-500" 
               aria-label={`تقدم الذكر: ${currentCompletedCount} من ${athkar.count}`}
             />
-            <div className="flex gap-2 justify-center">
+            <div className="flex gap-2 justify-center items-center">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onDecrementCount(athkar.id)}
-                disabled={currentCompletedCount === 0}
+                disabled={currentCompletedCount === 0 || isAutoCounting}
                 aria-label="إنقاص العد"
                 className="flex-1"
               >
@@ -93,13 +155,24 @@ export function AthkarItem({
                 variant="default"
                 size="sm"
                 onClick={handleMainAction}
-                disabled={isFullyCompleted}
+                disabled={isFullyCompleted || isAutoCounting}
                 aria-label="زيادة العد"
                 className="flex-1 bg-primary hover:bg-primary/90"
               >
                 <PlusCircle size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
                 {isFullyCompleted ? "مكتمل" : "زيادة"}
               </Button>
+              {athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 && !isFullyCompleted && (
+                <Button
+                  variant={isAutoCounting ? "destructive" : "outline"}
+                  size="icon"
+                  onClick={isAutoCounting ? stopAutoCount : startAutoCount}
+                  className="h-9 w-9"
+                  aria-label={isAutoCounting ? "إيقاف التعداد التلقائي" : "بدء التعداد التلقائي"}
+                >
+                  {isAutoCounting ? <Pause size={16} /> : <Play size={16} />}
+                </Button>
+              )}
             </div>
             {isFullyCompleted && (
               <Button
@@ -108,6 +181,7 @@ export function AthkarItem({
                 onClick={() => onResetCount(athkar.id)}
                 className="w-full text-xs text-muted-foreground hover:text-primary mt-2"
                 aria-label="إعادة تعيين العد"
+                disabled={isAutoCounting}
               >
                 <Repeat size={14} className="mr-1 rtl:ml-1 rtl:mr-0" /> إعادة تعيين
               </Button>

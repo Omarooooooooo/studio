@@ -24,21 +24,21 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // No longer needed here for this specific pattern
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
+  // DropdownMenuLabel, // No longer needed
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, ListCollapse, MoreHorizontal, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { Plus, ListCollapse, MoreHorizontal, Edit2, Trash2, Loader2, GripVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 
@@ -61,7 +61,6 @@ export default function HomePage() {
     if (storedGroupsString) {
       try {
         const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
-        // Ensure all groups have an athkar array
         const normalizedGroups = parsedGroups.map(group => ({
           ...group,
           athkar: group.athkar || [], 
@@ -93,7 +92,7 @@ export default function HomePage() {
     const newGroup: AthkarGroup = {
       id: Date.now().toString(),
       name: newGroupName.trim(),
-      athkar: [], // Initialize with an empty athkar array
+      athkar: [],
     };
     setGroups((prevGroups) => [...prevGroups, newGroup]);
     setNewGroupName('');
@@ -133,7 +132,7 @@ export default function HomePage() {
   const handleDeleteGroup = () => {
     if (!deletingGroup) return;
     setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
-    setDeletingGroup(null); // Close the dialog by resetting deletingGroup
+    setDeletingGroup(null);
     toast({
       title: "تم الحذف",
       description: `تم حذف مجموعة "${deletingGroup.name}".`,
@@ -141,6 +140,16 @@ export default function HomePage() {
     });
   };
 
+  const onDragEndGroup = (result: DropResult) => {
+    if (!result.destination) return;
+    if (result.destination.index === result.source.index) return;
+
+    const reorderedGroups = Array.from(groups);
+    const [movedGroup] = reorderedGroups.splice(result.source.index, 1);
+    reorderedGroups.splice(result.destination.index, 0, movedGroup);
+
+    setGroups(reorderedGroups);
+  };
 
   if (!hydrated) {
     return (
@@ -176,48 +185,68 @@ export default function HomePage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {groups.map((group) => (
-              <Card key={group.id} className="shadow-md hover:shadow-lg transition-shadow duration-300">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <Link href={`/group/${group.id}`} passHref className="flex-grow">
-                    <span className="text-lg font-semibold text-primary hover:underline cursor-pointer">
-                      {group.name}
-                    </span>
-                    <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
-                  </Link>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-5 w-5" />
-                        <span className="sr-only">خيارات المجموعة</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" dir="rtl">
-                      <DropdownMenuItem onClick={() => openEditDialog(group)}>
-                        <Edit2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-                        تعديل الاسم
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {/* Removed AlertDialogTrigger wrapper. onClick on DropdownMenuItem handles opening the dialog. */}
-                      <DropdownMenuItem 
-                        className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
-                        onClick={() => setDeletingGroup(group)}
-                        onSelect={(e) => e.preventDefault()} // Prevent dropdown from closing immediately if it were a trigger
+          <DragDropContext onDragEnd={onDragEndGroup}>
+            <Droppable droppableId="groupsDroppable">
+              {(provided) => (
+                <div
+                  className="space-y-4"
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                >
+                  {groups.map((group, index) => (
+                    <Draggable key={group.id} draggableId={group.id} index={index}>
+                      {(providedDraggable) => (
+                        <Card
+                          ref={providedDraggable.innerRef}
+                          {...providedDraggable.draggableProps}
+                          className="shadow-md hover:shadow-lg transition-shadow duration-300"
                         >
-                        <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-                        حذف المجموعة
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div {...providedDraggable.dragHandleProps} className="p-2 cursor-grab text-muted-foreground hover:text-foreground">
+                                <GripVertical size={20} />
+                            </div>
+                            <Link href={`/group/${group.id}`} passHref className="flex-grow mx-2">
+                              <span className="text-lg font-semibold text-primary hover:underline cursor-pointer">
+                                {group.name}
+                              </span>
+                              <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
+                            </Link>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-5 w-5" />
+                                  <span className="sr-only">خيارات المجموعة</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" dir="rtl">
+                                <DropdownMenuItem onClick={() => openEditDialog(group)}>
+                                  <Edit2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
+                                  تعديل الاسم
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
+                                  onClick={() => setDeletingGroup(group)}
+                                  onSelect={(e) => e.preventDefault()} 
+                                  >
+                                  <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
+                                  حذف المجموعة
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
       </main>
 
-      {/* Add Group Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button
@@ -255,11 +284,10 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Group Dialog */}
       {editingGroup && (
         <Dialog open={isEditDialogOpen} onOpenChange={(prevOpen) => {
-            if (!prevOpen && isEditDialogOpen) { // Dialog is closing
-                setEditingGroup(null); // Reset editingGroup when dialog closes
+            if (!prevOpen && isEditDialogOpen) { 
+                setEditingGroup(null); 
             }
             setIsEditDialogOpen(prevOpen);
         }}>
@@ -284,8 +312,8 @@ export default function HomePage() {
             <DialogFooter>
               <DialogClose asChild>
                  <Button variant="outline" onClick={() => {
-                    setIsEditDialogOpen(false); // Explicitly close
-                    setEditingGroup(null);    // Reset state
+                    setIsEditDialogOpen(false);
+                    setEditingGroup(null);
                  }}>إلغاء</Button>
               </DialogClose>
               <Button onClick={handleEditGroup}>حفظ التعديلات</Button>
@@ -294,11 +322,10 @@ export default function HomePage() {
         </Dialog>
       )}
 
-      {/* Delete Group Alert Dialog */}
       {deletingGroup && (
         <AlertDialog open={!!deletingGroup} onOpenChange={(open) => {
             if (!open) {
-                setDeletingGroup(null); // Reset deletingGroup when dialog closes
+                setDeletingGroup(null);
             }
         }}>
           <AlertDialogContent dir="rtl">
@@ -329,5 +356,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

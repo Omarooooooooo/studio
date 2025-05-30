@@ -18,9 +18,20 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { ArrowRight, Plus, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ArrowRight, Plus, Loader2, Edit3, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { AthkarList } from '@/components/athkar/AthkarList';
+import { DragDropContext, type DropResult } from 'react-beautiful-dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 
@@ -32,11 +43,24 @@ export default function GroupPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // Add Athkar Dialog State
   const [isAddAthkarDialogOpen, setIsAddAthkarDialogOpen] = useState(false);
   const [newAthkarArabic, setNewAthkarArabic] = useState('');
   const [newAthkarVirtue, setNewAthkarVirtue] = useState('');
   const [newAthkarCount, setNewAthkarCount] = useState('');
   const [newAthkarReadingTime, setNewAthkarReadingTime] = useState('');
+
+  // Edit Athkar Dialog State
+  const [isEditAthkarDialogOpen, setIsEditAthkarDialogOpen] = useState(false);
+  const [editingAthkar, setEditingAthkar] = useState<Athkar | null>(null);
+  const [editedAthkarArabic, setEditedAthkarArabic] = useState('');
+  const [editedAthkarVirtue, setEditedAthkarVirtue] = useState('');
+  const [editedAthkarCount, setEditedAthkarCount] = useState('');
+  const [editedAthkarReadingTime, setEditedAthkarReadingTime] = useState('');
+
+  // Delete Athkar Dialog State
+  const [deletingAthkar, setDeletingAthkar] = useState<Athkar | null>(null);
+
 
   const loadGroup = useCallback(() => {
     if (groupId) {
@@ -48,7 +72,7 @@ export default function GroupPage() {
           if (currentGroup) {
             setGroup({ ...currentGroup, athkar: currentGroup.athkar || [] });
           } else {
-            setGroup(null); // Group not found
+            setGroup(null);
             toast({ title: "خطأ", description: "المجموعة غير موجودة.", variant: "destructive" });
           }
         } catch (e) {
@@ -57,7 +81,7 @@ export default function GroupPage() {
           toast({ title: "خطأ", description: "فشل تحميل بيانات المجموعة.", variant: "destructive" });
         }
       } else {
-        setGroup(null); // No groups stored
+        setGroup(null);
       }
     }
     setIsLoading(false);
@@ -67,7 +91,11 @@ export default function GroupPage() {
     loadGroup();
   }, [loadGroup]);
 
-  const saveGroup = useCallback((updatedGroup: AthkarGroup | null) => {
+  const saveGroupsToLocalStorage = useCallback((allGroups: AthkarGroup[]) => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allGroups));
+  }, []);
+  
+  const saveCurrentGroup = useCallback((updatedGroup: AthkarGroup | null) => {
     if (!updatedGroup) return;
     const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
     let storedGroups: AthkarGroup[] = [];
@@ -76,15 +104,19 @@ export default function GroupPage() {
         storedGroups = JSON.parse(storedGroupsString);
       } catch (e) {
         console.error("Failed to parse groups from localStorage during save:", e);
+        toast({ title: "خطأ", description: "فشل حفظ التغييرات.", variant: "destructive" });
         return;
       }
     }
     const groupIndex = storedGroups.findIndex(g => g.id === updatedGroup.id);
     if (groupIndex !== -1) {
       storedGroups[groupIndex] = updatedGroup;
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(storedGroups));
+      saveGroupsToLocalStorage(storedGroups);
+    } else {
+       // This case should ideally not happen if group was loaded correctly
+       saveGroupsToLocalStorage([...storedGroups, updatedGroup]);
     }
-  }, []);
+  }, [saveGroupsToLocalStorage, toast]);
 
 
   const handleAddAthkar = () => {
@@ -92,7 +124,6 @@ export default function GroupPage() {
       toast({ title: "خطأ", description: "الرجاء إدخال نص الذكر.", variant: "destructive" });
       return;
     }
-
     const count = parseInt(newAthkarCount, 10);
     const readingTime = parseInt(newAthkarReadingTime, 10);
 
@@ -119,7 +150,7 @@ export default function GroupPage() {
       const updatedAthkar = [...group.athkar, newAthkarItem];
       const updatedGroup = { ...group, athkar: updatedAthkar };
       setGroup(updatedGroup);
-      saveGroup(updatedGroup);
+      saveCurrentGroup(updatedGroup);
 
       setNewAthkarArabic('');
       setNewAthkarVirtue('');
@@ -130,12 +161,74 @@ export default function GroupPage() {
     }
   };
 
+  const openEditAthkarDialog = (athkarToEdit: Athkar) => {
+    setEditingAthkar(athkarToEdit);
+    setEditedAthkarArabic(athkarToEdit.arabic);
+    setEditedAthkarVirtue(athkarToEdit.virtue || '');
+    setEditedAthkarCount(athkarToEdit.count?.toString() || '');
+    setEditedAthkarReadingTime(athkarToEdit.readingTimeSeconds?.toString() || '');
+    setIsEditAthkarDialogOpen(true);
+  };
+
+  const handleEditAthkar = () => {
+    if (!editingAthkar || !editedAthkarArabic.trim()) {
+      toast({ title: "خطأ", description: "الرجاء إدخال نص الذكر.", variant: "destructive" });
+      return;
+    }
+    const count = parseInt(editedAthkarCount, 10);
+    const readingTime = parseInt(editedAthkarReadingTime, 10);
+
+    if (editedAthkarCount.trim() && (isNaN(count) || count < 0)) {
+       toast({ title: "خطأ", description: "عدد التكرار يجب أن يكون رقمًا صحيحًا موجبًا.", variant: "destructive" });
+      return;
+    }
+    if (editedAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) {
+       toast({ title: "خطأ", description: "زمن القراءة يجب أن يكون رقمًا صحيحًا موجبًا.", variant: "destructive" });
+      return;
+    }
+
+    if (group) {
+      const updatedAthkarList = group.athkar.map(a => 
+        a.id === editingAthkar.id 
+        ? { 
+            ...a, 
+            arabic: editedAthkarArabic.trim(),
+            virtue: editedAthkarVirtue.trim() || undefined,
+            count: editedAthkarCount.trim() ? count : undefined,
+            readingTimeSeconds: editedAthkarReadingTime.trim() ? readingTime : undefined,
+          } 
+        : a
+      );
+      const updatedGroup = { ...group, athkar: updatedAthkarList };
+      setGroup(updatedGroup);
+      saveCurrentGroup(updatedGroup);
+      setIsEditAthkarDialogOpen(false);
+      setEditingAthkar(null);
+      toast({ title: "تم التعديل", description: "تم تعديل الذكر بنجاح." });
+    }
+  };
+  
+  const openDeleteAthkarDialog = (athkarToDelete: Athkar) => {
+    setDeletingAthkar(athkarToDelete);
+  };
+
+  const handleDeleteAthkar = () => {
+    if (!deletingAthkar || !group) return;
+    const updatedAthkarList = group.athkar.filter(a => a.id !== deletingAthkar.id);
+    const updatedGroup = { ...group, athkar: updatedAthkarList };
+    setGroup(updatedGroup);
+    saveCurrentGroup(updatedGroup);
+    setDeletingAthkar(null);
+    toast({ title: "تم الحذف", description: "تم حذف الذكر من المجموعة.", variant: "destructive" });
+  };
+
+
   const updateAthkarInGroup = (athkarId: string, updateFn: (athkar: Athkar) => Athkar) => {
     if (group) {
       const updatedAthkarList = group.athkar.map(a => a.id === athkarId ? updateFn(a) : a);
       const updatedGroup = { ...group, athkar: updatedAthkarList };
       setGroup(updatedGroup);
-      saveGroup(updatedGroup);
+      saveCurrentGroup(updatedGroup);
     }
   };
 
@@ -146,7 +239,7 @@ export default function GroupPage() {
   const handleIncrementCount = (athkarId: string) => {
     updateAthkarInGroup(athkarId, a => {
       const newCount = (a.completedCount ?? 0) + 1;
-      const isCompleted = newCount >= (a.count ?? 1);
+      const isCompleted = a.count ? newCount >= a.count : false; // Only complete if count is defined and met
       return { ...a, completedCount: newCount, completed: isCompleted };
     });
   };
@@ -154,13 +247,28 @@ export default function GroupPage() {
   const handleDecrementCount = (athkarId: string) => {
     updateAthkarInGroup(athkarId, a => {
       const newCount = Math.max(0, (a.completedCount ?? 0) - 1);
-      return { ...a, completedCount: newCount, completed: newCount >= (a.count ?? 1) };
+      const isCompleted = a.count ? newCount >= a.count : false;
+      return { ...a, completedCount: newCount, completed: isCompleted };
     });
   };
   
   const handleResetCount = (athkarId: string) => {
     updateAthkarInGroup(athkarId, a => ({ ...a, completedCount: 0, completed: false }));
   };
+
+  const onDragEndAthkar = (result: DropResult) => {
+    if (!result.destination || !group) return;
+    if (result.destination.index === result.source.index) return;
+
+    const reorderedAthkar = Array.from(group.athkar);
+    const [movedAthkar] = reorderedAthkar.splice(result.source.index, 1);
+    reorderedAthkar.splice(result.destination.index, 0, movedAthkar);
+    
+    const updatedGroup = { ...group, athkar: reorderedAthkar };
+    setGroup(updatedGroup);
+    saveCurrentGroup(updatedGroup);
+  };
+
 
   if (isLoading) {
     return (
@@ -201,17 +309,23 @@ export default function GroupPage() {
           </p>
         </div>
       </header>
+      
+      <DragDropContext onDragEnd={onDragEndAthkar}>
+        <main className="w-full max-w-2xl flex-grow">
+          <AthkarList
+              athkarList={group.athkar}
+              onToggleComplete={handleToggleComplete}
+              onIncrementCount={handleIncrementCount}
+              onDecrementCount={handleDecrementCount}
+              onResetCount={handleResetCount}
+              onEditAthkar={openEditAthkarDialog}
+              onDeleteAthkar={openDeleteAthkarDialog}
+          />
+        </main>
+      </DragDropContext>
 
-      <main className="w-full max-w-2xl flex-grow">
-        <AthkarList
-            athkarList={group.athkar}
-            onToggleComplete={handleToggleComplete}
-            onIncrementCount={handleIncrementCount}
-            onDecrementCount={handleDecrementCount}
-            onResetCount={handleResetCount}
-        />
-      </main>
 
+      {/* Add Athkar Dialog */}
       <Dialog open={isAddAthkarDialogOpen} onOpenChange={setIsAddAthkarDialogOpen}>
         <DialogTrigger asChild>
           <Button
@@ -231,9 +345,9 @@ export default function GroupPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="athkar-arabic">نص الذكر (بالعربية)</Label>
+              <Label htmlFor="add-athkar-arabic">نص الذكر (بالعربية)</Label>
               <Textarea
-                id="athkar-arabic"
+                id="add-athkar-arabic"
                 value={newAthkarArabic}
                 onChange={(e) => setNewAthkarArabic(e.target.value)}
                 placeholder="سبحان الله وبحمده..."
@@ -242,9 +356,9 @@ export default function GroupPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="athkar-virtue">فضل الذكر (اختياري)</Label>
+              <Label htmlFor="add-athkar-virtue">فضل الذكر (اختياري)</Label>
               <Textarea
-                id="athkar-virtue"
+                id="add-athkar-virtue"
                 value={newAthkarVirtue}
                 onChange={(e) => setNewAthkarVirtue(e.target.value)}
                 placeholder="مثال: من قاله مائة مرة حطت خطاياه..."
@@ -254,9 +368,9 @@ export default function GroupPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                    <Label htmlFor="athkar-count">عدد التكرار (اختياري)</Label>
+                    <Label htmlFor="add-athkar-count">عدد التكرار (اختياري)</Label>
                     <Input
-                        id="athkar-count"
+                        id="add-athkar-count"
                         type="number"
                         value={newAthkarCount}
                         onChange={(e) => setNewAthkarCount(e.target.value)}
@@ -265,9 +379,9 @@ export default function GroupPage() {
                     />
                 </div>
                 <div className="grid gap-2">
-                    <Label htmlFor="athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
+                    <Label htmlFor="add-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
                     <Input
-                        id="athkar-reading-time"
+                        id="add-athkar-reading-time"
                         type="number"
                         value={newAthkarReadingTime}
                         onChange={(e) => setNewAthkarReadingTime(e.target.value)}
@@ -286,6 +400,94 @@ export default function GroupPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Athkar Dialog */}
+      {editingAthkar && (
+        <Dialog open={isEditAthkarDialogOpen} onOpenChange={setIsEditAthkarDialogOpen}>
+          <DialogContent className="sm:max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>تعديل الذكر</DialogTitle>
+              <DialogDescription>
+                قم بتعديل تفاصيل الذكر.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-athkar-arabic">نص الذكر (بالعربية)</Label>
+                <Textarea
+                  id="edit-athkar-arabic"
+                  value={editedAthkarArabic}
+                  onChange={(e) => setEditedAthkarArabic(e.target.value)}
+                  lang="ar"
+                  rows={3}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-athkar-virtue">فضل الذكر (اختياري)</Label>
+                <Textarea
+                  id="edit-athkar-virtue"
+                  value={editedAthkarVirtue}
+                  onChange={(e) => setEditedAthkarVirtue(e.target.value)}
+                  lang="ar"
+                  rows={2}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                      <Label htmlFor="edit-athkar-count">عدد التكرار (اختياري)</Label>
+                      <Input
+                          id="edit-athkar-count"
+                          type="number"
+                          value={editedAthkarCount}
+                          onChange={(e) => setEditedAthkarCount(e.target.value)}
+                          min="0"
+                      />
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="edit-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
+                      <Input
+                          id="edit-athkar-reading-time"
+                          type="number"
+                          value={editedAthkarReadingTime}
+                          onChange={(e) => setEditedAthkarReadingTime(e.target.value)}
+                          min="0"
+                      />
+                  </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" onClick={() => {setIsEditAthkarDialogOpen(false); setEditingAthkar(null);}}>إلغاء</Button>
+              </DialogClose>
+              <Button onClick={handleEditAthkar}>حفظ التعديلات</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Athkar Alert Dialog */}
+      {deletingAthkar && (
+        <AlertDialog open={!!deletingAthkar} onOpenChange={(open) => { if (!open) setDeletingAthkar(null); }}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>هل أنت متأكد من حذف هذا الذكر؟</AlertDialogTitle>
+              <AlertDialogDescription>
+                سيتم حذف الذكر "{deletingAthkar.arabic.substring(0,20)}..." بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeletingAthkar(null)}>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAthkar}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                نعم، حذف الذكر
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+
       <footer className="w-full max-w-3xl mt-12 text-center">
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} Athkari App.
@@ -294,3 +496,4 @@ export default function GroupPage() {
     </div>
   );
 }
+

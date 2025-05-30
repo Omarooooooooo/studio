@@ -3,6 +3,7 @@
 
 import type { Athkar } from '@/types';
 import { AthkarItem } from './AthkarItem';
+import { Droppable, Draggable } from 'react-beautiful-dnd';
 
 interface AthkarListProps {
   athkarList: Athkar[];
@@ -10,6 +11,8 @@ interface AthkarListProps {
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
   onResetCount: (id: string) => void;
+  onEditAthkar: (athkar: Athkar) => void;
+  onDeleteAthkar: (athkar: Athkar) => void;
 }
 
 export function AthkarList({ 
@@ -17,7 +20,9 @@ export function AthkarList({
   onToggleComplete, 
   onIncrementCount, 
   onDecrementCount,
-  onResetCount
+  onResetCount,
+  onEditAthkar,
+  onDeleteAthkar
 }: AthkarListProps) {
   if (!athkarList || athkarList.length === 0) {
     return (
@@ -32,17 +37,37 @@ export function AthkarList({
   }
 
   return (
-    <div className="space-y-6">
-      {athkarList.map((thikr) => (
-        <AthkarItem
-          key={thikr.id}
-          athkar={thikr}
-          onToggleComplete={onToggleComplete}
-          onIncrementCount={onIncrementCount}
-          onDecrementCount={onDecrementCount}
-          onResetCount={onResetCount}
-        />
-      ))}
-    </div>
+    <Droppable droppableId="athkarDroppable">
+      {(provided) => (
+        <div 
+          className="space-y-6"
+          {...provided.droppableProps}
+          ref={provided.innerRef}
+        >
+          {athkarList.map((thikr, index) => (
+            <Draggable key={thikr.id} draggableId={thikr.id} index={index}>
+              {(providedDraggable) => (
+                <div
+                  ref={providedDraggable.innerRef}
+                  {...providedDraggable.draggableProps}
+                >
+                  <AthkarItem
+                    athkar={thikr}
+                    onToggleComplete={onToggleComplete}
+                    onIncrementCount={onIncrementCount}
+                    onDecrementCount={onDecrementCount}
+                    onResetCount={onResetCount}
+                    onEdit={() => onEditAthkar(thikr)}
+                    onDelete={() => onDeleteAthkar(thikr)}
+                    dragHandleProps={providedDraggable.dragHandleProps}
+                  />
+                </div>
+              )}
+            </Draggable>
+          ))}
+          {provided.placeholder}
+        </div>
+      )}
+    </Droppable>
   );
 }
