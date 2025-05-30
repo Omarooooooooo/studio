@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, History } from 'lucide-react'; // Added History
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided } from '@hello-pangea/dnd';
 
@@ -47,12 +47,12 @@ const GroupCardItem = memo(function GroupCardItem({ group, provided, onEdit, onD
     <div
       ref={provided.innerRef}
       {...provided.draggableProps}
-      className="mb-4" // Applied margin here
+      className="mb-4"
     >
       <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 ease-out">
         <CardContent className="p-4 flex items-center justify-between space-x-2 rtl:space-x-reverse">
-          <div 
-            {...provided.dragHandleProps} 
+          <div
+            {...provided.dragHandleProps}
             className="p-2 cursor-grab text-muted-foreground hover:text-foreground"
             aria-label={`اسحب لترتيب مجموعة ${group.name}`}
           >
@@ -68,11 +68,11 @@ const GroupCardItem = memo(function GroupCardItem({ group, provided, onEdit, onD
             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" onClick={() => onEdit(group)} aria-label={`تعديل اسم مجموعة ${group.name}`}>
               <Edit2 className="h-5 w-5" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-red-600 hover:text-red-700" 
-              onClick={() => onDelete(group)} 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-red-600 hover:text-red-700"
+              onClick={() => onDelete(group)}
               aria-label={`حذف مجموعة ${group.name}`}
             >
               <Trash2 className="h-5 w-5" />
@@ -91,7 +91,7 @@ export default function HomePage() {
   const [groups, setGroups] = useState<AthkarGroup[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
-  
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<AthkarGroup | null>(null);
   const [editedGroupName, setEditedGroupName] = useState('');
@@ -109,7 +109,7 @@ export default function HomePage() {
           const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
           const normalizedGroups = parsedGroups.map(group => ({
             ...group,
-            athkar: group.athkar || [], 
+            athkar: group.athkar || [],
           }));
           setGroups(normalizedGroups);
         } catch (e) {
@@ -125,11 +125,11 @@ export default function HomePage() {
         setTheme(prefersDark ? 'dark' : 'light');
       }
     }
-    setHydrated(true); 
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (hydrated && typeof window !== 'undefined') { 
+    if (hydrated && typeof window !== 'undefined') {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
       } catch (e) {
@@ -173,7 +173,7 @@ export default function HomePage() {
     if (!editingGroup || !editedGroupName.trim()) {
       return;
     }
-    setGroups(prevGroups => 
+    setGroups(prevGroups =>
       prevGroups.map(g => g.id === editingGroup.id ? { ...g, name: editedGroupName.trim() } : g)
     );
     setIsEditDialogOpen(false);
@@ -188,7 +188,7 @@ export default function HomePage() {
   const handleDeleteGroup = useCallback(() => {
     if (!deletingGroup) return;
     setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
-    setDeletingGroup(null); 
+    setDeletingGroup(null);
   }, [deletingGroup]);
 
   const onDragEndGroup = useCallback((result: DropResult) => {
@@ -216,20 +216,24 @@ export default function HomePage() {
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
       <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
          {hydrated ? (
-            <Button 
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-                variant="outline" 
-                size="icon" 
+            <Button
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                variant="outline"
+                size="icon"
                 aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
             >
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </Button>
-          ) : <div className="w-10 h-10"></div> }
+          ) : <div className="w-10 h-10"></div> } {/* Spacer for theme button */}
 
-        <h1 className="text-4xl font-bold text-primary text-center">
+        <h1 className="text-4xl font-bold text-primary text-center flex-grow">
           أذكاري
         </h1>
-        <div className="w-10 h-10"></div>
+        {hydrated ? (
+           <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
+              <History className="h-5 w-5" />
+           </Button>
+        ) : <div className="w-10 h-10"></div>} {/* Spacer for log button */}
       </header>
 
       <main className="w-full max-w-xl flex-grow">
@@ -311,8 +315,8 @@ export default function HomePage() {
 
       {editingGroup && (
         <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen) { 
-                setEditingGroup(null); 
+            if (!isOpen) {
+                setEditingGroup(null);
             }
             setIsEditDialogOpen(isOpen);
         }}>
@@ -375,5 +379,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

@@ -28,13 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff, ScrollText } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import type { AthkarLogStore } from '@/types';
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; // New key for separate log
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
 const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
@@ -121,8 +121,22 @@ export default function GroupPage() {
     }
   }, [isHapticsEnabled, isClient]);
 
-  
-  const saveGroupsToLocalStorage = useCallback((updatedGroups: AthkarGroup[]) => {
+
+  const getStoredGroups = useCallback((): AthkarGroup[] => {
+    if (typeof window === 'undefined') return [];
+    const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
+    if (storedGroupsString) {
+      try {
+        return JSON.parse(storedGroupsString) as AthkarGroup[];
+      } catch (e) {
+        console.error("Failed to parse groups from localStorage:", e);
+        return [];
+      }
+    }
+    return [];
+  }, []);
+
+  const saveStoredGroupsToLocalStorage = useCallback((updatedGroups: AthkarGroup[]) => {
     if (typeof window !== 'undefined') {
         try {
             localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
@@ -131,81 +145,50 @@ export default function GroupPage() {
         }
     }
   }, []);
-  const saveGroupsToLocalStorageRef = useRef(saveGroupsToLocalStorage);
-   useEffect(() => {
-    saveGroupsToLocalStorageRef.current = saveGroupsToLocalStorage;
-  }, [saveGroupsToLocalStorage]);
 
-
-  const saveCurrentGroupStructure = useCallback((updatedGroup: GroupInSession | null) => {
-      if (!updatedGroup || typeof window === 'undefined') return;
-      const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
-      let storedGroups: AthkarGroup[] = [];
-      if (storedGroupsString) {
-        try {
-          storedGroups = JSON.parse(storedGroupsString);
-        } catch (e) {
-          console.error("Failed to parse groups from localStorage during structure save:", e);
-          return;
-        }
-      }
-      
-      const groupToSave: AthkarGroup = {
-        ...updatedGroup,
-        athkar: updatedGroup.athkar.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
-      };
-
-      const groupIndex = storedGroups.findIndex(g => g.id === groupToSave.id);
-      if (groupIndex !== -1) {
-        storedGroups[groupIndex] = groupToSave;
-      } else {
-         storedGroups.push(groupToSave);
-      }
-      saveGroupsToLocalStorageRef.current(storedGroups);
-  }, []);
-
-   const saveCurrentGroupStructureRef = useRef(saveCurrentGroupStructure);
-   useEffect(() => {
-    saveCurrentGroupStructureRef.current = saveCurrentGroupStructure;
-  }, [saveCurrentGroupStructure]);
+  const saveCurrentGroupStructureRef = useRef((updatedGroup: GroupInSession | null) => {
+    if (!updatedGroup || typeof window === 'undefined') return;
+    const storedGroups = getStoredGroups();
+    const groupToSave: AthkarGroup = {
+      ...updatedGroup,
+      athkar: updatedGroup.athkar.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
+    };
+    const groupIndex = storedGroups.findIndex(g => g.id === groupToSave.id);
+    if (groupIndex !== -1) {
+      storedGroups[groupIndex] = groupToSave;
+    } else {
+       storedGroups.push(groupToSave);
+    }
+    saveStoredGroupsToLocalStorage(storedGroups);
+  });
 
 
   const loadGroup = useCallback(() => {
     if (groupId && typeof window !== 'undefined') {
       setIsLoading(true);
-      const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
-      if (storedGroupsString) {
-        try {
-          const storedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
-          const currentStoredGroup = storedGroups.find(g => g.id === groupId);
-          if (currentStoredGroup) {
-            const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
-              ...thikr, 
-              sessionProgress: 0, 
-              isSessionHidden: false, 
-            }));
-            setGroup({ ...currentStoredGroup, athkar: athkarInSession });
-          } else {
-            setGroup(null); 
-          }
-        } catch (e) {
-          console.error("Failed to parse groups from localStorage:", e);
-          setGroup(null);
-        }
+      const storedGroups = getStoredGroups();
+      const currentStoredGroup = storedGroups.find(g => g.id === groupId);
+      if (currentStoredGroup) {
+        const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
+          ...thikr,
+          sessionProgress: 0,
+          isSessionHidden: false,
+        }));
+        setGroup({ ...currentStoredGroup, athkar: athkarInSession });
       } else {
-        setGroup(null); 
+        setGroup(null);
       }
     }
     setIsLoading(false);
-  }, [groupId]);
+  }, [groupId, getStoredGroups]);
 
   useEffect(() => {
-    if(isClient && groupId){ 
+    if(isClient && groupId){
         loadGroup();
     }
   }, [loadGroup, isClient, groupId]);
 
-  const updateSeparateAthkarLog = useCallback((athkarArabic: string, repetitionsToAdd: number) => {
+ const updateSeparateAthkarLog = useCallback((athkarArabic: string, repetitionsToAdd: number) => {
     if (typeof window === 'undefined' || repetitionsToAdd <= 0) return;
     console.log(`LOG_DATA_UPDATE: Updating separate log for "${athkarArabic}" by ${repetitionsToAdd}`);
     try {
@@ -216,7 +199,6 @@ export default function GroupPage() {
           logData = JSON.parse(logString);
         } catch (parseError) {
           console.error("Failed to parse Athkar log data from localStorage:", parseError);
-          // Potentially reset or handle corrupt data
         }
       }
       logData[athkarArabic] = (logData[athkarArabic] || 0) + repetitionsToAdd;
@@ -245,16 +227,15 @@ export default function GroupPage() {
       return;
     }
 
-    const newStoredAthkar: StoredAthkar = { 
+    const newStoredAthkar: StoredAthkar = {
       id: Date.now().toString(),
       arabic: newAthkarArabic.trim(),
       virtue: newAthkarVirtue.trim() || undefined,
       count: newAthkarCount.trim() ? count : undefined,
       readingTimeSeconds: newAthkarReadingTime.trim() ? readingTime : undefined,
-      // No completedCount here as it's handled by the separate log
     };
-    
-    const newAthkarInSession: AthkarInSession = { 
+
+    const newAthkarInSession: AthkarInSession = {
         ...newStoredAthkar,
         sessionProgress: 0,
         isSessionHidden: false,
@@ -264,7 +245,7 @@ export default function GroupPage() {
       if (!prevGroup) return null;
       const updatedAthkar = [...prevGroup.athkar, newAthkarInSession];
       const updatedGroup = { ...prevGroup, athkar: updatedAthkar };
-      saveCurrentGroupStructureRef.current(updatedGroup); 
+      saveCurrentGroupStructureRef.current(updatedGroup);
       return updatedGroup;
     });
 
@@ -273,7 +254,7 @@ export default function GroupPage() {
     setNewAthkarCount('');
     setNewAthkarReadingTime('');
     setIsAddAthkarDialogOpen(false);
-  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, saveCurrentGroupStructureRef]);
+  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue]);
 
   const openEditAthkarDialog = useCallback((athkarToEdit: AthkarInSession) => {
     setEditingAthkar(athkarToEdit);
@@ -303,26 +284,26 @@ export default function GroupPage() {
 
     setGroup(prevGroup => {
       if (!prevGroup || !editingAthkar) return prevGroup;
-      const updatedAthkarList = prevGroup.athkar.map(a => 
-        a.id === editingAthkar.id 
-        ? { 
-            ...a, 
+      const updatedAthkarList = prevGroup.athkar.map(a =>
+        a.id === editingAthkar.id
+        ? {
+            ...a,
             arabic: editedAthkarArabic.trim(),
             virtue: editedAthkarVirtue.trim() || undefined,
-            count: editedAthkarCount.trim() ? count : undefined, 
+            count: editedAthkarCount.trim() ? count : undefined,
             readingTimeSeconds: editedAthkarReadingTime.trim() ? readingTime : undefined,
-          } 
+          }
         : a
       );
       const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
-      saveCurrentGroupStructureRef.current(updatedGroup); 
+      saveCurrentGroupStructureRef.current(updatedGroup);
       return updatedGroup;
     });
-    
+
     setIsEditAthkarDialogOpen(false);
     setEditingAthkar(null);
-  }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue, saveCurrentGroupStructureRef]);
-  
+  }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue]);
+
   const openDeleteAthkarDialog = useCallback((athkarToDelete: AthkarInSession) => {
     setDeletingAthkar(athkarToDelete);
   }, []);
@@ -333,54 +314,55 @@ export default function GroupPage() {
         if (!prevGroup || !deletingAthkar) return prevGroup;
         const updatedAthkarList = prevGroup.athkar.filter(a => a.id !== deletingAthkar.id);
         const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
-        saveCurrentGroupStructureRef.current(updatedGroup); 
+        saveCurrentGroupStructureRef.current(updatedGroup);
         return updatedGroup;
      });
     setDeletingAthkar(null);
-  }, [deletingAthkar, saveCurrentGroupStructureRef]);
+  }, [deletingAthkar]);
 
-  
+
   const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
-      if (!prevGroup) return null;
-      let amountToLogToSeparateStorage = 0;
+        if (!prevGroup) return null;
+        let amountToLog = 0;
 
-      const updatedAthkarList = prevGroup.athkar.map(thikr => {
-        if (thikr.id === athkarId) {
-          const oldSessionProgress = thikr.sessionProgress;
-          const wasSessionHidden = thikr.isSessionHidden; // Crucial: check *before* update
-          const targetCount = thikr.count || 1;
-          
-          if (wasSessionHidden) { // Already completed and hidden in this session
-            return thikr;
-          }
+        const updatedAthkarList = prevGroup.athkar.map(thikr => {
+            if (thikr.id === athkarId) {
+                const oldSessionProgress = thikr.sessionProgress;
+                const wasSessionHidden = thikr.isSessionHidden;
+                const targetCount = thikr.count || 1;
 
-          let newSessionProgress = oldSessionProgress + 1;
-          let newIsSessionHidden = false;
-          
-          if (newSessionProgress >= targetCount) {
-            newIsSessionHidden = true;
-            if (!wasSessionHidden) { // Log only if it *just* became hidden
-                 amountToLogToSeparateStorage = targetCount;
-                 console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) cycle completed. Will log to separate storage: ${amountToLogToSeparateStorage}`);
+                if (wasSessionHidden) {
+                    console.log(`INC_HANDLER: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) already hidden in session. No action.`);
+                    return thikr;
+                }
+
+                let newSessionProgress = oldSessionProgress + 1;
+                let newIsSessionHidden = false;
+
+                if (newSessionProgress >= targetCount) {
+                    newIsSessionHidden = true;
+                    if (!wasSessionHidden) { // Log only if it *just* became hidden
+                        amountToLog = targetCount;
+                        console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) cycle completed. Will log to separate storage: ${amountToLog}`);
+                    }
+                }
+                const displaySessionProgress = Math.min(newSessionProgress, targetCount);
+                return { ...thikr, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
             }
-          }
-          
-          const displaySessionProgress = Math.min(newSessionProgress, targetCount);
-          return { ...thikr, sessionProgress: displaySessionProgress, isSessionHidden: newIsSessionHidden };
-        }
-        return thikr;
-      });
+            return thikr;
+        });
 
-      if (amountToLogToSeparateStorage > 0) {
-        const completedThikr = updatedAthkarList.find(a => a.id === athkarId);
-        if (completedThikr) {
-            updateSeparateAthkarLog(completedThikr.arabic, amountToLogToSeparateStorage);
+        if (amountToLog > 0) {
+            const completedThikr = updatedAthkarList.find(a => a.id === athkarId);
+            if (completedThikr) {
+                 updateSeparateAthkarLog(completedThikr.arabic, amountToLog);
+            }
         }
-      }
-      return { ...prevGroup, athkar: updatedAthkarList };
+        return { ...prevGroup, athkar: updatedAthkarList };
     });
   }, [updateSeparateAthkarLog]);
+
 
   const handleDecrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
@@ -393,7 +375,7 @@ export default function GroupPage() {
           let newIsSessionHidden = a.isSessionHidden;
 
           if (a.isSessionHidden && newSessionProgress < targetCount) {
-            newIsSessionHidden = false; 
+            newIsSessionHidden = false;
           }
           return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHidden };
         }
@@ -402,38 +384,37 @@ export default function GroupPage() {
       return { ...prevGroup, athkar: updatedAthkarList };
     });
   }, []);
-  
+
   const handleToggleComplete = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
-      if (!prevGroup) return null;
-      let amountToLogToSeparateStorage = 0;
+        if (!prevGroup) return null;
+        let amountToLog = 0;
 
-      const updatedAthkarList = prevGroup.athkar.map(thikr => {
-        if (thikr.id === athkarId && (!thikr.count || thikr.count <=1) ) { // Only for toggleable (non-countable or count=1)
-            const wasSessionHidden = thikr.isSessionHidden;
-            const newIsSessionHidden = !wasSessionHidden;
-            
-            if (newIsSessionHidden && !wasSessionHidden) { // Just completed in session
-                amountToLogToSeparateStorage = 1;
-                 console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) (toggleable) completed. Will log to separate storage: ${amountToLogToSeparateStorage}`);
+        const updatedAthkarList = prevGroup.athkar.map(thikr => {
+            if (thikr.id === athkarId && (!thikr.count || thikr.count <= 1)) {
+                const wasSessionHidden = thikr.isSessionHidden;
+                const newIsSessionHidden = !wasSessionHidden;
+
+                if (newIsSessionHidden && !wasSessionHidden) {
+                    amountToLog = 1;
+                    console.log(`LOG_ACTION: Athkar ${thikr.id} (${thikr.arabic.substring(0,10)}) (toggleable) completed. Will log to separate storage: ${amountToLog}`);
+                }
+                 return {
+                    ...thikr,
+                    isSessionHidden: newIsSessionHidden,
+                    sessionProgress: newIsSessionHidden ? (thikr.count || 1) : 0
+                };
             }
-            
-            return { 
-                ...thikr, 
-                isSessionHidden: newIsSessionHidden, 
-                sessionProgress: newIsSessionHidden ? (thikr.count || 1) : 0 
-            };
-        }
-        return thikr;
-      });
+            return thikr;
+        });
 
-       if (amountToLogToSeparateStorage > 0) {
-        const completedThikr = updatedAthkarList.find(a => a.id === athkarId);
-        if (completedThikr) {
-            updateSeparateAthkarLog(completedThikr.arabic, amountToLogToSeparateStorage);
+        if (amountToLog > 0) {
+            const completedThikr = updatedAthkarList.find(a => a.id === athkarId);
+            if (completedThikr) {
+                updateSeparateAthkarLog(completedThikr.arabic, amountToLog);
+            }
         }
-      }
-      return { ...prevGroup, athkar: updatedAthkarList };
+        return { ...prevGroup, athkar: updatedAthkarList };
     });
   }, [updateSeparateAthkarLog]);
 
@@ -441,9 +422,9 @@ export default function GroupPage() {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
       const updatedAthkarList = prevGroup.athkar.map(a => ({
-        ...a, 
-        sessionProgress: 0, 
-        isSessionHidden: false, 
+        ...a,
+        sessionProgress: 0,
+        isSessionHidden: false,
       }));
       // DO NOT TOUCH THE SEPARATE LOG HERE
       console.log("SESSION_RESET: All Athkar in current group session reset. Separate log is unaffected.");
@@ -460,12 +441,12 @@ export default function GroupPage() {
       const reorderedAthkar = Array.from(prevGroup.athkar);
       const [movedAthkar] = reorderedAthkar.splice(result.source.index, 1);
       reorderedAthkar.splice(result.destination.index, 0, movedAthkar);
-      
+
       const updatedGroup = { ...prevGroup, athkar: reorderedAthkar };
-      saveCurrentGroupStructureRef.current(updatedGroup); 
+      saveCurrentGroupStructureRef.current(updatedGroup);
       return updatedGroup;
     });
-  }, [saveCurrentGroupStructureRef]);
+  }, []);
 
   const handleIncrementFontSize = useCallback(() => {
     setFontSizeMultiplier(prev => Math.min(prev + 0.1, 2));
@@ -517,10 +498,10 @@ export default function GroupPage() {
             </Button>
             {isClient && (
               <>
-                <Button 
-                    onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-                    variant="outline" 
-                    size="icon" 
+                <Button
+                    onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                    variant="outline"
+                    size="icon"
                     aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
                 >
                     {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
@@ -544,30 +525,28 @@ export default function GroupPage() {
               </>
             )}
           </div>
-          
+
            <div className="flex items-center gap-1 sm:gap-2">
-            <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
-                <ScrollText className="h-4 w-4" />
-            </Button>
+            {/* Removed Athkar Log button as it's now on the main page */}
             <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
               <Minus className="h-4 w-4" />
             </Button>
             <Button onClick={handleIncrementFontSize} variant="outline" size="icon" aria-label="تكبير الخط">
               <Plus className="h-4 w-4" />
             </Button>
-            <Button 
-              onClick={toggleSortMode} 
+            <Button
+              onClick={toggleSortMode}
               variant={isSortMode ? "secondary" : "outline"}
-              size="icon" 
+              size="icon"
               aria-label={isSortMode ? "الخروج من وضع الترتيب" : "الدخول إلى وضع الترتيب"}
               className={isSortMode ? "bg-accent text-accent-foreground" : ""}
             >
               <ListFilter className="h-4 w-4" />
             </Button>
-            <Button 
-              onClick={handleResetAllAthkar} 
-              variant="outline" 
-              size="icon" 
+            <Button
+              onClick={handleResetAllAthkar}
+              variant="outline"
+              size="icon"
               className="hover:bg-destructive hover:text-destructive-foreground"
               aria-label="إعادة تعيين الأذكار لهذه الجلسة (لا يؤثر على السجل الدائم)"
             >
@@ -581,15 +560,15 @@ export default function GroupPage() {
                 {group.name}
             </h1>
         </div>
-      
+
       {isClient && (
         <DragDropContext onDragEnd={onDragEndAthkar}>
           <main className="w-full max-w-2xl flex-grow">
             <AthkarList
-                athkarList={group.athkar} 
-                onToggleComplete={handleToggleComplete} 
-                onIncrementCount={handleIncrementCount} 
-                onDecrementCount={handleDecrementCount} 
+                athkarList={group.athkar}
+                onToggleComplete={handleToggleComplete}
+                onIncrementCount={handleIncrementCount}
+                onDecrementCount={handleDecrementCount}
                 onEditAthkar={openEditAthkarDialog}
                 onDeleteAthkar={openDeleteAthkarDialog}
                 fontSizeMultiplier={fontSizeMultiplier}
