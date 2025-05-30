@@ -3,17 +3,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AthkarGroup, Athkar } from '@/types';
+import type { AthkarGroup, AthkarLogEntry } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight, Loader2, ScrollText } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
-
-interface AthkarLogEntry {
-  arabic: string;
-  totalCompleted: number;
-}
 
 export default function AthkarLogPage() {
   const router = useRouter();
@@ -36,25 +31,27 @@ export default function AthkarLogPage() {
           storedGroups.forEach(group => {
             if (group.athkar && Array.isArray(group.athkar)) {
               group.athkar.forEach(thikr => {
-                const currentCount = completionMap.get(thikr.arabic) || 0;
-                completionMap.set(thikr.arabic, currentCount + (thikr.completedCount || 0));
+                // Ensure completedCount is a number, default to 0 if not present or invalid
+                const thikrCompletedCount = typeof thikr.completedCount === 'number' ? thikr.completedCount : 0;
+                const currentTotal = completionMap.get(thikr.arabic) || 0;
+                completionMap.set(thikr.arabic, currentTotal + thikrCompletedCount);
               });
             }
           });
 
           const aggregatedLogData: AthkarLogEntry[] = [];
           completionMap.forEach((totalCompleted, arabic) => {
-            if (totalCompleted > 0) { // Only include athkar that have been completed at least once
+            if (totalCompleted > 0) { // Only include athkar that have been completed at least once in terms of cumulative count
                 aggregatedLogData.push({ arabic, totalCompleted });
             }
           });
           
           // Sort by most completed
           aggregatedLogData.sort((a, b) => b.totalCompleted - a.totalCompleted);
-
+          console.log("ATHKAR_LOG: Aggregated Log Data:", aggregatedLogData);
           setLogData(aggregatedLogData);
         } catch (e) {
-          console.error("Failed to parse or process groups from localStorage:", e);
+          console.error("ATHKAR_LOG: Failed to parse or process groups from localStorage:", e);
           setLogData([]);
         }
       }
@@ -88,8 +85,8 @@ export default function AthkarLogPage() {
         {logData.length === 0 ? (
           <Card className="text-center text-muted-foreground py-10">
             <CardContent>
-              <p className="text-xl">لم تقم بإكمال أي أذكار بعد.</p>
-              <p>ابدأ بإكمال الأذكار في مجموعاتك ليظهر السجل هنا.</p>
+              <p className="text-xl">لم يتم تسجيل إكمال أي أذكار بعد.</p>
+              <p>ابدأ بإكمال دورات الأذكار في مجموعاتك ليظهر السجل هنا.</p>
             </CardContent>
           </Card>
         ) : (
