@@ -99,37 +99,33 @@ export default function HomePage() {
   const [deletingGroup, setDeletingGroup] = useState<AthkarGroup | null>(null);
 
   const [hydrated, setHydrated] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light'); // Default to light, script handles initial
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedGroupsString) {
-        try {
-          const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
-          const normalizedGroups = parsedGroups.map(group => ({
-            ...group,
-            athkar: group.athkar || [], 
-          }));
-          setGroups(normalizedGroups);
-        } catch (e) {
-          console.error("Failed to parse stored groups:", e);
-          setGroups([]);
-        }
-      }
-      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
-      if (storedTheme) {
-        setTheme(storedTheme);
-      } else {
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setTheme(prefersDark ? 'dark' : 'light');
+    // Theme is initially set by inline script in RootLayout
+    // This effect syncs React state and handles subsequent toggles
+    const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    setTheme(currentTheme);
+    
+    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (storedGroupsString) {
+      try {
+        const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
+        const normalizedGroups = parsedGroups.map(group => ({
+          ...group,
+          athkar: group.athkar || [], 
+        }));
+        setGroups(normalizedGroups);
+      } catch (e) {
+        console.error("Failed to parse stored groups:", e);
+        setGroups([]);
       }
     }
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (hydrated && typeof window !== 'undefined') {
+    if (hydrated) {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
       } catch (e) {
@@ -138,16 +134,19 @@ export default function HomePage() {
     }
   }, [groups, hydrated]);
 
-  useEffect(() => {
-    if (hydrated) {
-      if (theme === 'dark') {
+  const toggleTheme = useCallback(() => {
+    setTheme(prevTheme => {
+      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
+      if (newTheme === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
-      localStorage.setItem(THEME_STORAGE_KEY, theme);
-    }
-  }, [theme, hydrated]);
+      localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+      return newTheme;
+    });
+  }, []);
+
 
   const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
@@ -213,27 +212,23 @@ export default function HomePage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
+    <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground animate-slide-in-from-right">
       <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
-         {hydrated ? (
             <Button
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                onClick={toggleTheme}
                 variant="outline"
                 size="icon"
                 aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
             >
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </Button>
-          ) : <div className="w-10 h-10"></div> }
 
         <h1 className="text-4xl font-bold text-primary text-center flex-grow">
           أذكاري
         </h1>
-        {hydrated ? (
            <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
               <History className="h-5 w-5" />
            </Button>
-        ) : <div className="w-10 h-10"></div>}
       </header>
 
       <main className="w-full max-w-xl flex-grow">
