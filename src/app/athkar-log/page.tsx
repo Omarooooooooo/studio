@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, History, ListOrdered, Loader2, Trash2 } from 'lucide-react';
+import { ArrowRight, ListOrdered, Loader2, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
@@ -120,7 +120,6 @@ export default function AthkarLogPage() {
           <ArrowRight className="h-5 w-5" />
         </Button>
         <h1 className="text-3xl font-bold text-primary flex items-center">
-          <History className="ml-3 rtl:mr-0 rtl:ml-3 h-7 w-7" />
           سجل الأذكار
         </h1>
         {logEntries.length > 0 ? (
