@@ -25,16 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, ListCollapse, MoreHorizontal, Edit2, Trash2, Loader2, GripVertical } from 'lucide-react';
+import { Plus, ListCollapse, Edit2, Trash2, Loader2, GripVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
@@ -209,7 +202,7 @@ export default function HomePage() {
                             {...providedDraggable.draggableProps}
                             className="shadow-md hover:shadow-lg transition-shadow duration-300"
                           >
-                            <CardContent className="p-4 flex items-center justify-between">
+                            <CardContent className="p-4 flex items-center justify-between space-x-2 rtl:space-x-reverse">
                               <div {...providedDraggable.dragHandleProps} className="p-2 cursor-grab text-muted-foreground hover:text-foreground">
                                   <GripVertical size={20} />
                               </div>
@@ -219,28 +212,20 @@ export default function HomePage() {
                                 </span>
                                 <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
                               </Link>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreHorizontal className="h-5 w-5" />
-                                    <span className="sr-only">خيارات المجموعة</span>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" dir="rtl">
-                                  <DropdownMenuItem onClick={() => openEditDialog(group)}>
-                                    <Edit2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-                                    تعديل الاسم
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
-                                    onClick={() => openDeleteDialog(group)} 
-                                    >
-                                    <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-                                    حذف المجموعة
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" onClick={() => openEditDialog(group)} aria-label={`تعديل اسم مجموعة ${group.name}`}>
+                                  <Edit2 className="h-5 w-5" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-red-600 hover:text-red-700" 
+                                  onClick={() => openDeleteDialog(group)} 
+                                  aria-label={`حذف مجموعة ${group.name}`}
+                                >
+                                  <Trash2 className="h-5 w-5" />
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         )}
@@ -356,11 +341,7 @@ export default function HomePage() {
         </AlertDialog>
       )}
 
-      <footer className="w-full max-w-3xl mt-12 text-center">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Athkari App. كل لحظة ذكر هي كنز.
-        </p>
-      </footer>
+      
     </div>
   );
 }
