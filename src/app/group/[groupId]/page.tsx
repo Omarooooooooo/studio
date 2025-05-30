@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2 } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
@@ -44,6 +44,7 @@ export default function GroupPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
 
 
   // Add Athkar Dialog State
@@ -291,6 +292,29 @@ export default function GroupPage() {
     });
   }, []);
 
+  const handleIncrementFontSize = useCallback(() => {
+    setFontSizeMultiplier(prev => Math.min(prev + 0.1, 2));
+  }, []);
+
+  const handleDecrementFontSize = useCallback(() => {
+    setFontSizeMultiplier(prev => Math.max(prev - 0.1, 0.5));
+  }, []);
+
+  const handleResetAllAthkar = useCallback(() => {
+    setGroup(prevGroup => {
+      if (!prevGroup) return null;
+      const resetAthkar = prevGroup.athkar.map(a => ({
+        ...a,
+        completed: false,
+        completedCount: 0,
+      }));
+      const updatedGroup = { ...prevGroup, athkar: resetAthkar };
+      saveCurrentGroupRef.current(updatedGroup);
+      return updatedGroup;
+    });
+    toast({ title: "تم بنجاح", description: "تمت إعادة تعيين جميع الأذكار في المجموعة." });
+  }, [toast]);
+
 
   if (isLoading || !isClient) {
     return (
@@ -321,9 +345,21 @@ export default function GroupPage() {
             <ArrowRight className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
             العودة للرئيسية
           </Button>
+           <div className="flex items-center gap-2">
+            <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleIncrementFontSize} variant="outline" size="icon" aria-label="تكبير الخط">
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleResetAllAthkar} variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground">
+              <RefreshCcw className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
+              إعادة تعيين الكل
+            </Button>
+          </div>
         </div>
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-primary mb-2">
+          <h1 className="text-3xl font-bold text-primary">
             {group.name}
           </h1>
         </div>
@@ -340,6 +376,7 @@ export default function GroupPage() {
                 onResetCount={handleResetCount}
                 onEditAthkar={openEditAthkarDialog}
                 onDeleteAthkar={openDeleteAthkarDialog}
+                fontSizeMultiplier={fontSizeMultiplier}
             />
           </main>
         </DragDropContext>
@@ -520,4 +557,3 @@ export default function GroupPage() {
     </div>
   );
 }
-

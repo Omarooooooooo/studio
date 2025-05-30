@@ -13,6 +13,7 @@ interface AthkarListProps {
   onResetCount: (id: string) => void;
   onEditAthkar: (athkar: Athkar) => void;
   onDeleteAthkar: (athkar: Athkar) => void;
+  fontSizeMultiplier: number;
 }
 
 export function AthkarList({ 
@@ -22,7 +23,8 @@ export function AthkarList({
   onDecrementCount,
   onResetCount,
   onEditAthkar,
-  onDeleteAthkar
+  onDeleteAthkar,
+  fontSizeMultiplier
 }: AthkarListProps) {
   if (!athkarList || athkarList.length === 0) {
     return (
@@ -60,6 +62,7 @@ export function AthkarList({
                     onEdit={() => onEditAthkar(thikr)}
                     onDelete={() => onDeleteAthkar(thikr)}
                     dragHandleProps={providedDraggable.dragHandleProps}
+                    fontSizeMultiplier={fontSizeMultiplier}
                   />
                 </div>
               )}

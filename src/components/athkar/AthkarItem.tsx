@@ -4,7 +4,7 @@
 import type { Athkar } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, PlusCircle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
@@ -14,10 +14,11 @@ interface AthkarItemProps {
   onToggleComplete: (id: string) => void;
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
-  onResetCount: (id: string) => void; // Kept in props in case it's used elsewhere or for future use
+  onResetCount: (id: string) => void;
   onEdit: () => void;
   onDelete: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
+  fontSizeMultiplier: number;
 }
 
 export function AthkarItem({
@@ -28,7 +29,8 @@ export function AthkarItem({
   onResetCount,
   onEdit,
   onDelete,
-  dragHandleProps
+  dragHandleProps,
+  fontSizeMultiplier
 }: AthkarItemProps) {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 0;
   const currentCompletedCount = athkar.completedCount ?? 0;
@@ -90,9 +92,12 @@ export function AthkarItem({
   const circumference = 2 * Math.PI * 15.9155; 
   const progressPercentage = athkar.count ? (currentCompletedCount / athkar.count) : 0;
 
+  // Base font size for Arabic text in rem (e.g., text-2xl is 1.5rem)
+  const baseFontSizeRem = 1.5; 
+  const baseLineHeight = 1.625; // From leading-relaxed, unitless
 
   return (
-    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted ? 'bg-primary/10 border-primary/50' : 'bg-card'}`}>
+    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted ? 'bg-primary/10 border-primary/50 hidden' : 'bg-card'}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-center">
@@ -124,13 +129,27 @@ export function AthkarItem({
       </CardHeader>
 
       <CardContent className="pb-4">
-        <p className="text-2xl leading-relaxed text-center font-arabic text-foreground mb-4" lang="ar" dir="rtl">
+        <p 
+          className="text-center font-arabic text-foreground mb-4" 
+          lang="ar" 
+          dir="rtl"
+          style={{ 
+            fontSize: `${baseFontSizeRem * fontSizeMultiplier}rem`,
+            lineHeight: `${baseLineHeight}` // Unitless line height will be relative to the current font size
+          }}
+        >
           {athkar.arabic}
         </p>
 
         {showVirtue && athkar.virtue && (
           <div className="mb-4 p-3 bg-accent/10 rounded-md border border-accent/30">
-            <p className="text-sm text-accent-foreground/90 text-center" dir="rtl">{athkar.virtue}</p>
+            <p 
+              className="text-accent-foreground/90 text-center" 
+              dir="rtl"
+              style={{ fontSize: `${0.875 * fontSizeMultiplier}rem` }} // Smaller font for virtue
+            >
+              {athkar.virtue}
+            </p>
           </div>
         )}
 
@@ -138,7 +157,7 @@ export function AthkarItem({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>التكرار: {currentCompletedCount} / {athkar.count}</span>
-              {isFullyCompleted && <Badge variant="default" className="bg-green-600 text-white">مكتمل</Badge>}
+              {/* Badge for completed is less relevant if card is hidden */}
             </div>
             
             <div className="flex items-center justify-center gap-3 sm:gap-4 my-4">
@@ -203,23 +222,6 @@ export function AthkarItem({
                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> 
               )}
             </div>
-
-            {/* Removed Reset Button
-            {isFullyCompleted && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (!isAutoCounting) onResetCount(athkar.id);
-                }}
-                className="w-full text-xs text-muted-foreground hover:text-primary mt-2"
-                aria-label="إعادة تعيين العد"
-                disabled={isAutoCounting}
-              >
-                <Repeat size={14} className="mr-1 rtl:ml-1 rtl:mr-0" /> إعادة تعيين
-              </Button>
-            )}
-            */}
           </div>
         ) : (
           <Button
