@@ -1,20 +1,26 @@
 
 "use client";
 
-import type { Athkar } from '@/types';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Athkar as StoredAthkar } from '@/types'; // Use StoredAthkar for base type
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+// import { Badge } from '@/components/ui/badge'; // Not currently used
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 
+// Athkar object received by this component includes session-specific properties
+interface AthkarInSession extends StoredAthkar {
+  sessionProgress: number;
+  isSessionHidden: boolean;
+}
+
 interface AthkarItemProps {
-  athkar: Athkar;
-  onToggleComplete: (id: string) => void;
-  onIncrementCount: (id: string) => void;
-  onDecrementCount: (id: string) => void;
-  onResetCount: (id: string) => void;
+  athkar: AthkarInSession; // Expecting the augmented type
+  onToggleComplete: (id: string) => void; // For non-countable or count=1
+  onIncrementCount: (id: string) => void; // For countable
+  onDecrementCount: (id: string) => void; // For countable
+  // onResetCount: (id: string) => void; // No longer used by a button here
   onEdit: () => void;
   onDelete: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
@@ -27,18 +33,17 @@ export function AthkarItem({
   onToggleComplete,
   onIncrementCount,
   onDecrementCount,
-  onResetCount,
+  // onResetCount,
   onEdit,
   onDelete,
   dragHandleProps,
   fontSizeMultiplier,
   isSortMode
 }: AthkarItemProps) {
-  const isCountable = typeof athkar.count === 'number' && athkar.count > 0;
-  const currentCompletedCount = athkar.completedCount ?? 0;
-  // isFullyCompleted now considers if athkar.completed is true OR if count is met.
-  // For the card hiding logic, we will use athkar.completed directly.
-  const isFullyCompleted = isCountable ? currentCompletedCount >= athkar.count : athkar.completed;
+  const isCountable = typeof athkar.count === 'number' && athkar.count > 1; // Strictly > 1 for distinct behavior
+  const currentSessionProgress = athkar.sessionProgress || 0;
+  // isSessionHidden determines if the card is hidden in the UI for the current session
+  const isHiddenInSession = athkar.isSessionHidden;
 
 
   const [isAutoCounting, setIsAutoCounting] = useState(false);
@@ -52,16 +57,26 @@ export function AthkarItem({
   }, [onIncrementCount]);
 
   useEffect(() => {
-    if (isAutoCounting && !isFullyCompleted && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
+    if (isAutoCounting && !isHiddenInSession && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       autoCountIntervalRef.current = setInterval(() => {
-        stableOnIncrementCountRef.current(athkar.id);
+        // Check if still not hidden before incrementing via auto-count
+        // This relies on parent component to update athkar.isSessionHidden promptly
+        // A more robust way might involve passing a getter for the current isSessionHidden state
+        // or checking sessionProgress against athkar.count directly here if AthkarItem owns more state.
+        // For now, we assume parent updates `athkar` prop correctly.
+        if (stableOnIncrementCountRef.current && !athkar.isSessionHidden) { // Check athkar.isSessionHidden from prop
+             stableOnIncrementCountRef.current(athkar.id);
+        } else if (athkar.isSessionHidden) { // If it became hidden, stop auto counting
+            setIsAutoCounting(false);
+        }
       }, athkar.readingTimeSeconds * 1000);
     } else {
       if (autoCountIntervalRef.current) {
         clearInterval(autoCountIntervalRef.current);
         autoCountIntervalRef.current = null;
       }
-      if (isAutoCounting && (isFullyCompleted || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
+      // If auto-counting was on but conditions no longer met (e.g., became hidden, or settings changed)
+      if (isAutoCounting && (isHiddenInSession || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
         setIsAutoCounting(false); 
       }
     }
@@ -70,38 +85,34 @@ export function AthkarItem({
         clearInterval(autoCountIntervalRef.current);
       }
     };
-  }, [isAutoCounting, isFullyCompleted, isCountable, athkar.id, athkar.readingTimeSeconds]);
+  // Add athkar.isSessionHidden to dependencies to re-evaluate interval when it changes
+  }, [isAutoCounting, isHiddenInSession, isCountable, athkar.id, athkar.readingTimeSeconds, athkar.isSessionHidden]);
 
 
   const handleMainAction = useCallback(() => {
     if (isCountable) {
-      // For countable Athkar, if it's marked as 'completed' (e.g. by reset button),
-      // but count isn't met, first tap should effectively "uncomplete" it for this session
-      // by allowing increment. Otherwise, just increment.
-      if (athkar.completed && currentCompletedCount < athkar.count!) {
-         onToggleComplete(athkar.id); // This will set completed to false
-      }
-      if (currentCompletedCount < athkar.count!) { 
+      if (!isHiddenInSession) { // Only increment if not already hidden for the session
         onIncrementCount(athkar.id);
       }
-    } else {
+    } else { // For non-countable or count = 1, toggle completion
       onToggleComplete(athkar.id);
     }
-  }, [isCountable, currentCompletedCount, athkar.count, athkar.id, athkar.completed, onIncrementCount, onToggleComplete]);
+  }, [isCountable, isHiddenInSession, athkar.id, onIncrementCount, onToggleComplete]);
 
 
   const handleToggleAutoCount = useCallback(() => {
     if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       if (isAutoCounting) {
         setIsAutoCounting(false);
-      } else if (!isFullyCompleted) { 
+      } else if (!isHiddenInSession) { // Only start if not already completed in session
         setIsAutoCounting(true);
       }
     }
-  }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isFullyCompleted]);
+  }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, isHiddenInSession]);
 
   const circumference = 2 * Math.PI * 15.9155; 
-  const progressPercentage = athkar.count ? (currentCompletedCount / athkar.count) : 0;
+  // Progress percentage for the current session
+  const progressPercentage = athkar.count && athkar.count > 0 ? (currentSessionProgress / athkar.count) : (isHiddenInSession ? 1 : 0);
 
   const baseFontSizeRem = 1.5; 
   const baseLineHeight = 1.625; 
@@ -109,7 +120,7 @@ export function AthkarItem({
   if (isSortMode) {
     return (
       <Card 
-        className={`w-full shadow-sm bg-card flex items-center p-3 rounded-md transition-opacity duration-300 ${isFullyCompleted ? 'opacity-60' : 'opacity-100'}`}
+        className={`w-full shadow-sm bg-card flex items-center p-3 rounded-md transition-opacity duration-300 ${isHiddenInSession ? 'opacity-60' : 'opacity-100'}`}
       >
         {dragHandleProps && (
           <div {...dragHandleProps} className="p-1 cursor-grab text-muted-foreground hover:text-foreground mr-2 rtl:ml-2 rtl:mr-0">
@@ -130,18 +141,19 @@ export function AthkarItem({
       </Card>
     );
   }
-  // Hide card if athkar.completed is true and not in sort mode
+  
+  // Hide card if athkar.isSessionHidden is true and not in sort mode
   return (
-    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${athkar.completed && !isSortMode ? 'hidden' : 'bg-card'} ${isSortMode && isFullyCompleted ? 'opacity-60' : 'opacity-100'}`}>
+    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isHiddenInSession && !isSortMode ? 'hidden' : 'bg-card'} ${isSortMode && isHiddenInSession ? 'opacity-60' : 'opacity-100'}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-center">
+            {/* Drag handle is only rendered if dragHandleProps are provided by parent (AthkarList) */}
             {dragHandleProps && (
               <div {...dragHandleProps} className="p-1 cursor-grab text-muted-foreground hover:text-foreground mr-2 rtl:ml-2 rtl:mr-0">
                 <GripVertical size={20} />
               </div>
             )}
-            {/* Removed athkar.text from here to give more space to arabic text if needed */}
           </div>
           <div className="flex items-center gap-1">
             {athkar.virtue && (
@@ -160,7 +172,7 @@ export function AthkarItem({
             </Button>
           </div>
         </div>
-        {athkar.category && <CardDescription className="text-xs text-muted-foreground mt-1 text-center">{athkar.category}</CardDescription>}
+        {/* {athkar.category && <CardDescription className="text-xs text-muted-foreground mt-1 text-center">{athkar.category}</CardDescription>} Removed category */}
       </CardHeader>
 
       <CardContent className="pb-4">
@@ -188,14 +200,14 @@ export function AthkarItem({
           </div>
         )}
 
-        {isCountable ? (
+        {isCountable ? ( // For athkar with count > 1
           <div className="space-y-3">
             <div className="flex items-center justify-center gap-3 sm:gap-4 my-4">
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => onDecrementCount(athkar.id)}
-                disabled={currentCompletedCount === 0 || isAutoCounting || (athkar.completed && currentCompletedCount >= (athkar.count ?? 0) )}
+                disabled={currentSessionProgress === 0 || isAutoCounting || isHiddenInSession}
                 aria-label="إنقاص العد"
                 className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
               >
@@ -203,11 +215,11 @@ export function AthkarItem({
               </Button>
 
               <button
-                onClick={handleMainAction}
-                disabled={(isFullyCompleted && athkar.completed) || isAutoCounting}
-                aria-label={isFullyCompleted && athkar.completed ? "مكتمل" : "زيادة العد"}
+                onClick={handleMainAction} // This calls onIncrementCount for countable
+                disabled={isHiddenInSession || isAutoCounting}
+                aria-label={isHiddenInSession ? "مكتمل لهذه الجلسة" : "زيادة العد"}
                 className={`relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                            ${(isFullyCompleted && athkar.completed) || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
+                            ${isHiddenInSession || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
                   <circle
@@ -232,17 +244,17 @@ export function AthkarItem({
                     transform="rotate(-90 18 18)" 
                   />
                 </svg>
-                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${(isFullyCompleted && athkar.completed) || isAutoCounting ? 'text-muted-foreground' : 'text-primary-foreground'}`}>
-                  {currentCompletedCount}
+                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isHiddenInSession || isAutoCounting ? 'text-muted-foreground' : 'text-primary-foreground'}`}>
+                  {currentSessionProgress}
                 </span>
               </button>
 
-              {isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 ? (
+              {athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0 ? (
                 <Button
                   variant={isAutoCounting ? "destructive" : "outline"}
                   size="icon"
                   onClick={handleToggleAutoCount}
-                  disabled={(!isAutoCounting && (isFullyCompleted && athkar.completed || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
+                  disabled={isHiddenInSession || (!isAutoCounting && (!athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
                   className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
                   aria-label={isAutoCounting ? "إيقاف التعداد التلقائي" : "بدء التعداد التلقائي"}
                 >
@@ -253,28 +265,28 @@ export function AthkarItem({
               )}
             </div>
           </div>
-        ) : (
+        ) : ( // For non-countable (toggle completion) or count = 1
           <Button
-            variant={athkar.completed ? "secondary" : "default"}
-            onClick={handleMainAction}
+            variant={isHiddenInSession ? "secondary" : "default"}
+            onClick={handleMainAction} // This calls onToggleComplete
             className="w-full"
-            aria-label={athkar.completed ? "تمييز كغير مكتمل" : "تمييز كمكتمل"}
+            aria-label={isHiddenInSession ? "تمييز كغير مكتمل لهذه الجلسة" : "تمييز كمكتمل لهذه الجلسة"}
           >
-            {athkar.completed ? (
+            {isHiddenInSession ? (
               <CheckCircle2 size={20} className="mr-2 rtl:ml-2 rtl:mr-0 text-green-500" />
             ) : (
               <Circle size={20} className="mr-2 rtl:ml-2 rtl:mr-0" />
             )}
-            {athkar.completed ? 'مكتمل' : 'إكمال الذكر'}
+            {isHiddenInSession ? 'مكتمل (لهذه الجلسة)' : 'إكمال الذكر'}
           </Button>
         )}
       </CardContent>
-      {(isCountable || athkar.readingTimeSeconds) && !isSortMode && (
+      {(athkar.count || athkar.readingTimeSeconds) && !isSortMode && (
          <CardFooter className="text-xs text-muted-foreground pt-2 pb-3 flex justify-between">
-            {isCountable && (
-              <p className="rtl:text-right">التكرار: {currentCompletedCount} / {athkar.count}</p>
+            {athkar.count && athkar.count > 0 && ( // Display target count for countable athkar
+              <p className="rtl:text-right">التكرار المطلوب: {athkar.count}</p>
             )}
-            {!isCountable && athkar.readingTimeSeconds && <span />} 
+            {!(athkar.count && athkar.count > 0) && athkar.readingTimeSeconds && <span />} {/* Placeholder for alignment if only reading time */}
             {athkar.readingTimeSeconds && (
                 <p className="ltr:text-right rtl:text-left">زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
             )}
@@ -283,4 +295,3 @@ export function AthkarItem({
     </Card>
   );
 }
-

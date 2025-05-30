@@ -1,18 +1,25 @@
 
 "use client";
 
-import type { Athkar } from '@/types';
+// import type { Athkar } from '@/types'; // Using AthkarInSession from GroupPage directly in map
+import type { Athkar as StoredAthkar } from '@/types';
 import { AthkarItem } from './AthkarItem';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 
+// Define the augmented Athkar type that AthkarItem expects
+interface AthkarInSession extends StoredAthkar {
+  sessionProgress: number;
+  isSessionHidden: boolean;
+}
+
 interface AthkarListProps {
-  athkarList: Athkar[];
+  athkarList: AthkarInSession[]; // Expecting the augmented type
   onToggleComplete: (id: string) => void;
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
-  onResetCount: (id: string) => void;
-  onEditAthkar: (athkar: Athkar) => void;
-  onDeleteAthkar: (athkar: Athkar) => void;
+  // onResetCount: (id: string) => void; // No longer used by AthkarItem directly
+  onEditAthkar: (athkar: AthkarInSession) => void; // Pass AthkarInSession
+  onDeleteAthkar: (athkar: AthkarInSession) => void; // Pass AthkarInSession
   fontSizeMultiplier: number;
   isSortMode: boolean;
 }
@@ -22,7 +29,7 @@ export function AthkarList({
   onToggleComplete, 
   onIncrementCount, 
   onDecrementCount,
-  onResetCount,
+  // onResetCount,
   onEditAthkar,
   onDeleteAthkar,
   fontSizeMultiplier,
@@ -56,11 +63,11 @@ export function AthkarList({
                   {...providedDraggable.draggableProps}
                 >
                   <AthkarItem
-                    athkar={thikr}
+                    athkar={thikr} // thikr is AthkarInSession
                     onToggleComplete={onToggleComplete}
                     onIncrementCount={onIncrementCount}
                     onDecrementCount={onDecrementCount}
-                    onResetCount={onResetCount}
+                    // onResetCount={onResetCount}
                     onEdit={() => onEditAthkar(thikr)}
                     onDelete={() => onDeleteAthkar(thikr)}
                     dragHandleProps={providedDraggable.dragHandleProps}
@@ -77,5 +84,3 @@ export function AthkarList({
     </Droppable>
   );
 }
-
-    
