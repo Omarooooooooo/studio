@@ -4,7 +4,7 @@
 import type { Athkar } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, PlusCircle, MinusCircle, Repeat, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, PlusCircle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
@@ -14,7 +14,7 @@ interface AthkarItemProps {
   onToggleComplete: (id: string) => void;
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
-  onResetCount: (id: string) => void;
+  onResetCount: (id: string) => void; // Kept in props in case it's used elsewhere or for future use
   onEdit: () => void;
   onDelete: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
@@ -130,7 +130,7 @@ export function AthkarItem({
 
         {showVirtue && athkar.virtue && (
           <div className="mb-4 p-3 bg-accent/10 rounded-md border border-accent/30">
-            <p className="text-sm text-accent-foreground/90" dir="rtl">{athkar.virtue}</p>
+            <p className="text-sm text-accent-foreground/90 text-center" dir="rtl">{athkar.virtue}</p>
           </div>
         )}
 
@@ -204,6 +204,7 @@ export function AthkarItem({
               )}
             </div>
 
+            {/* Removed Reset Button
             {isFullyCompleted && (
               <Button
                 variant="ghost"
@@ -218,6 +219,7 @@ export function AthkarItem({
                 <Repeat size={14} className="mr-1 rtl:ml-1 rtl:mr-0" /> إعادة تعيين
               </Button>
             )}
+            */}
           </div>
         ) : (
           <Button
