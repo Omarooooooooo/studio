@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { AthkarGroup } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,14 +28,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, ListCollapse, Edit2, Trash2, Loader2, GripVertical } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, ScrollText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
+const THEME_STORAGE_KEY = 'athkari-theme';
 
 export default function HomePage() {
+  const router = useRouter();
   const [groups, setGroups] = useState<AthkarGroup[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -47,6 +50,7 @@ export default function HomePage() {
 
   const [hydrated, setHydrated] = useState(false);
   const { toast } = useToast();
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -64,6 +68,14 @@ export default function HomePage() {
           setGroups([]);
         }
       }
+      // Theme
+      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
+      if (storedTheme) {
+        setTheme(storedTheme);
+      } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setTheme(prefersDark ? 'dark' : 'light');
+      }
     }
     setHydrated(true); 
   }, []);
@@ -73,6 +85,17 @@ export default function HomePage() {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
     }
   }, [groups, hydrated]);
+
+  useEffect(() => {
+    if (hydrated) {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+  }, [theme, hydrated]);
 
   const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
@@ -162,14 +185,29 @@ export default function HomePage() {
 
   return (
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
-      <header className="w-full max-w-3xl mb-8 text-center">
-        <h1 className="text-5xl font-bold text-primary flex items-center justify-center">
-          <ListCollapse className="ml-3 rtl:mr-0 rtl:ml-3 h-12 w-12 text-accent" />
-          مجموعات أذكاري
+      <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
+        {hydrated && (
+          <Button 
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+              variant="outline" 
+              size="icon" 
+              aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
+          >
+              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </Button>
+        )}
+        {!hydrated && <div className="w-10 h-10"></div>} {/* Placeholder for spacing */}
+        <h1 className="text-4xl font-bold text-primary">
+          أذكاري
         </h1>
-        <p className="text-lg text-muted-foreground mt-2">
-          أنشئ ونظم مجموعات الأذكار الخاصة بك.
-        </p>
+        <Button 
+            onClick={() => router.push('/athkar-log')} 
+            variant="outline" 
+            size="icon" 
+            aria-label="عرض سجل الأذكار"
+        >
+            <ScrollText className="h-5 w-5" />
+        </Button>
       </header>
 
       <main className="w-full max-w-xl flex-grow">
@@ -340,8 +378,6 @@ export default function HomePage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
-
-      
     </div>
   );
 }
