@@ -28,13 +28,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 const THEME_STORAGE_KEY = 'athkari-theme';
+const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
+const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
 
 export default function GroupPage() {
   const router = useRouter();
@@ -48,6 +50,8 @@ export default function GroupPage() {
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [isHapticsEnabled, setIsHapticsEnabled] = useState(true);
 
 
   // Add Athkar Dialog State
@@ -74,6 +78,7 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (isClient) {
+      // Theme
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
       if (storedTheme) {
         setTheme(storedTheme);
@@ -81,6 +86,12 @@ export default function GroupPage() {
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         setTheme(prefersDark ? 'dark' : 'light');
       }
+      // Sound
+      const storedSound = localStorage.getItem(SOUND_STORAGE_KEY);
+      setIsSoundEnabled(storedSound ? JSON.parse(storedSound) : true);
+      // Haptics
+      const storedHaptics = localStorage.getItem(HAPTICS_STORAGE_KEY);
+      setIsHapticsEnabled(storedHaptics ? JSON.parse(storedHaptics) : true);
     }
   }, [isClient]);
 
@@ -94,6 +105,18 @@ export default function GroupPage() {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
     }
   }, [theme, isClient]);
+
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem(SOUND_STORAGE_KEY, JSON.stringify(isSoundEnabled));
+    }
+  }, [isSoundEnabled, isClient]);
+
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem(HAPTICS_STORAGE_KEY, JSON.stringify(isHapticsEnabled));
+    }
+  }, [isHapticsEnabled, isClient]);
 
 
   const saveGroupsToLocalStorage = useCallback((allGroups: AthkarGroup[]) => {
@@ -345,6 +368,14 @@ export default function GroupPage() {
     setIsSortMode(prev => !prev);
   }, []);
 
+  const toggleSound = useCallback(() => {
+    setIsSoundEnabled(prev => !prev);
+  }, []);
+
+  const toggleHaptics = useCallback(() => {
+    setIsHapticsEnabled(prev => !prev);
+  }, []);
+
 
   if (isLoading || !isClient) {
     return (
@@ -369,13 +400,13 @@ export default function GroupPage() {
 
   return (
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
-      <header className="w-full max-w-4xl mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
+      <header className="w-full max-w-4xl mb-6 flex justify-between items-center">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={() => router.push('/')} variant="outline" size="icon" aria-label="العودة للرئيسية">
               <ArrowRight className="h-4 w-4" />
             </Button>
             {isClient && (
+              <>
                 <Button 
                     onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
                     variant="outline" 
@@ -384,9 +415,31 @@ export default function GroupPage() {
                 >
                     {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
+                <Button
+                    onClick={toggleSound}
+                    variant="outline"
+                    size="icon"
+                    aria-label={isSoundEnabled ? "تعطيل الصوت" : "تفعيل الصوت"}
+                >
+                    {isSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </Button>
+                <Button
+                    onClick={toggleHaptics}
+                    variant="outline"
+                    size="icon"
+                    aria-label={isHapticsEnabled ? "تعطيل الاهتزاز" : "تفعيل الاهتزاز"}
+                >
+                    {isHapticsEnabled ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                </Button>
+              </>
             )}
           </div>
-           <div className="flex items-center gap-2">
+          <div className="flex-grow text-center px-2">
+            <h1 className="text-2xl font-semibold text-primary truncate" title={group.name}>
+                {group.name}
+            </h1>
+           </div>
+           <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
               <Minus className="h-4 w-4" />
             </Button>
@@ -412,13 +465,7 @@ export default function GroupPage() {
               <RefreshCcw className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-primary">
-            {group.name}
-          </h1>
-        </div>
-      </header>
+        </header>
       
       {isClient && (
         <DragDropContext onDragEnd={onDragEndAthkar}>
@@ -603,13 +650,9 @@ export default function GroupPage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
-
-
-      <footer className="w-full max-w-3xl mt-12 text-center">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Athkari App.
-        </p>
-      </footer>
     </div>
   );
 }
+
+
+    
