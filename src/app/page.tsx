@@ -26,10 +26,9 @@ export default function HomePage() {
   const [groups, setGroups] = useState<AthkarGroup[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
-  const [hydrated, setHydrated] = useState(false); // New state to track hydration
+  const [hydrated, setHydrated] = useState(false);
   const { toast } = useToast();
 
-  // Load groups from localStorage on initial mount
   useEffect(() => {
     const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedGroupsString) {
@@ -37,13 +36,12 @@ export default function HomePage() {
         setGroups(JSON.parse(storedGroupsString));
       } catch (e) {
         console.error("Failed to parse stored groups:", e);
-        setGroups([]); // Fallback to empty array on error
+        setGroups([]);
       }
     }
-    setHydrated(true); // Mark as hydrated after attempting to load
+    setHydrated(true);
   }, []);
 
-  // Save groups to localStorage whenever groups state changes, but only if hydrated
   useEffect(() => {
     if (hydrated) {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
@@ -60,8 +58,9 @@ export default function HomePage() {
       return;
     }
     const newGroup: AthkarGroup = {
-      id: Date.now().toString(), // Simple unique ID
+      id: Date.now().toString(),
       name: newGroupName.trim(),
+      athkar: [], // Initialize with an empty athkar array
     };
     setGroups((prevGroups) => [...prevGroups, newGroup]);
     setNewGroupName('');
@@ -73,7 +72,6 @@ export default function HomePage() {
   };
 
   if (!hydrated) {
-    // Optional: render a loading state or null while hydrating
     return (
       <div className="flex justify-center items-center min-h-screen bg-background text-foreground">
         <p className="text-lg">جاري التحميل...</p>
@@ -99,10 +97,10 @@ export default function HomePage() {
             لا توجد مجموعات حتى الآن. اضغط على زر '+' لإضافة مجموعتك الأولى!
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4"> {/* Changed to grid-cols-1 for full width buttons */}
             {groups.map((group) => (
               <Link key={group.id} href={`/group/${group.id}`} passHref>
-                <Button variant="outline" className="w-full h-24 text-lg justify-center items-center p-4 shadow-md hover:shadow-lg transition-shadow">
+                <Button variant="outline" className="w-full h-20 text-lg justify-center items-center p-4 shadow-md hover:shadow-lg transition-shadow"> {/* Adjusted height */}
                   {group.name}
                 </Button>
               </Link>
