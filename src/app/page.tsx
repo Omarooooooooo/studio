@@ -24,7 +24,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  // AlertDialogTrigger, // No longer needed here for this specific pattern
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -199,15 +199,15 @@ export default function HomePage() {
                         تعديل الاسم
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem 
-                          className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
-                          onClick={() => setDeletingGroup(group)}
-                          >
-                          <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
-                          حذف المجموعة
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
+                      {/* Removed AlertDialogTrigger wrapper. onClick on DropdownMenuItem handles opening the dialog. */}
+                      <DropdownMenuItem 
+                        className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50"
+                        onClick={() => setDeletingGroup(group)}
+                        onSelect={(e) => e.preventDefault()} // Prevent dropdown from closing immediately if it were a trigger
+                        >
+                        <Trash2 className="ml-2 rtl:mr-0 rtl:ml-2 h-4 w-4" />
+                        حذف المجموعة
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </CardContent>
@@ -257,7 +257,12 @@ export default function HomePage() {
 
       {/* Edit Group Dialog */}
       {editingGroup && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={(prevOpen) => {
+            if (!prevOpen && isEditDialogOpen) { // Dialog is closing
+                setEditingGroup(null); // Reset editingGroup when dialog closes
+            }
+            setIsEditDialogOpen(prevOpen);
+        }}>
           <DialogContent className="sm:max-w-[425px]" dir="rtl">
             <DialogHeader>
               <DialogTitle>تعديل اسم المجموعة</DialogTitle>
@@ -278,7 +283,10 @@ export default function HomePage() {
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button variant="outline" onClick={() => setEditingGroup(null)}>إلغاء</Button>
+                 <Button variant="outline" onClick={() => {
+                    setIsEditDialogOpen(false); // Explicitly close
+                    setEditingGroup(null);    // Reset state
+                 }}>إلغاء</Button>
               </DialogClose>
               <Button onClick={handleEditGroup}>حفظ التعديلات</Button>
             </DialogFooter>
@@ -288,7 +296,11 @@ export default function HomePage() {
 
       {/* Delete Group Alert Dialog */}
       {deletingGroup && (
-        <AlertDialog open={!!deletingGroup} onOpenChange={(open) => !open && setDeletingGroup(null)}>
+        <AlertDialog open={!!deletingGroup} onOpenChange={(open) => {
+            if (!open) {
+                setDeletingGroup(null); // Reset deletingGroup when dialog closes
+            }
+        }}>
           <AlertDialogContent dir="rtl">
             <AlertDialogHeader>
               <AlertDialogTitle>هل أنت متأكد من الحذف؟</AlertDialogTitle>
@@ -317,3 +329,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
