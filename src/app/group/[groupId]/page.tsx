@@ -325,7 +325,6 @@ export default function GroupPage() {
   }, [updateAthkarInGroup]);
   
   const handleResetCount = useCallback((athkarId: string) => {
-     // This specific reset is for individual Athkar, so it should affect its completedCount for the log.
     updateAthkarInGroup(athkarId, a => ({ ...a, completedCount: 0, completed: false }));
   }, [updateAthkarInGroup]);
 
@@ -357,36 +356,22 @@ export default function GroupPage() {
   const handleResetAllAthkar = useCallback(() => {
     setGroup(prevGroup => {
       if (!prevGroup) return null;
-      // For each Athkar, set 'completed' to false.
-      // Crucially, do NOT reset 'completedCount' to 0 here for persistence,
-      // to avoid clearing the historical log data.
-      // The AthkarItem component itself will need to handle how it visually represents
-      // this "session reset" if its 'completedCount' is still high.
-      const athkarForPersistence = prevGroup.athkar.map(a => ({
-        ...a, // This preserves the original completedCount
-        completed: false,
+      
+      const updatedAthkarList = prevGroup.athkar.map(a => ({
+        ...a,
+        completed: false, // Make Athkar reappear
+        completedCount: 0, // Reset visual counter for this session
       }));
 
-      // For immediate visual feedback, we can give the UI a version where completedCount is 0.
-      // However, this state will be overwritten if an athkar is interacted with,
-      // as onIncrementCount will use the persisted (non-zero) completedCount.
-      // This creates a discrepancy.
-      // A simpler approach for now: only set 'completed: false'.
-      // The user will see non-countable items reappear.
-      // Countable items that were fully completed might not reappear if AthkarItem's
-      // isFullyCompleted logic depends on completedCount >= count.
-      const updatedGroup = { ...prevGroup, athkar: athkarForPersistence };
+      const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
       
-      saveCurrentGroupRef.current(updatedGroup); // Save to localStorage with original completedCount
+      // This will save the completedCount as 0 to localStorage for this group's Athkar.
+      // The log page will reflect this change for this group.
+      saveCurrentGroupRef.current(updatedGroup); 
       
-      // To ensure visual reset for the current session (items reappear and counters look reset),
-      // we might need a temporary state for display or a signal to AthkarItem.
-      // For now, we update the state which will be passed to AthkarList.
-      // AthkarItem will then use its `athkar.completed` and `athkar.completedCount` props.
-      // If `completedCount` wasn't reset, items might not look fully reset.
-      return updatedGroup; // This state is passed to AthkarList
+      return updatedGroup;
     });
-    toast({ title: "تم بنجاح", description: "تمت إعادة تعيين حالة إكمال الأذكار لهذه الجلسة. لم يتم تعديل سجل التقدم الكلي." });
+    toast({ title: "تم بنجاح", description: "تمت إعادة تعيين الأذكار لهذه الجلسة. عداداتها أصبحت صفراً، والسجل سيعكس هذا التغيير لهذه المجموعة." });
   }, [toast]);
 
 
@@ -490,7 +475,7 @@ export default function GroupPage() {
         </header>
 
         <div className="w-full max-w-4xl text-center mb-6">
-            <h1 className="text-3xl font-bold text-primary" title={group.name}>
+            <h1 className="text-3xl font-bold text-primary truncate px-2" title={group.name}>
                 {group.name}
             </h1>
         </div>
