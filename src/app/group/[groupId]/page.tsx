@@ -36,9 +36,13 @@ import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 const LOCAL_STORAGE_KEY = 'athkari_groups';
 
 export default function GroupPage() {
-  const params = useParams();
   const router = useRouter();
-  const groupId = params.groupId as string;
+  // Directly destructure groupId and assert its type from useParams
+  // useParams returns Readonly<Params> which is Readonly<{[key: string]: string | string[]}>
+  // We expect groupId to be a string.
+  const { groupId: rawGroupId } = useParams() as { groupId: string };
+  const groupId = rawGroupId;
+
   const [group, setGroup] = useState<AthkarGroup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
