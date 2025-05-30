@@ -34,7 +34,7 @@ import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; 
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
 const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
@@ -59,7 +59,7 @@ export default function GroupPage() {
   const [isClient, setIsClient] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light'); 
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isHapticsEnabled, setIsHapticsEnabled] = useState(true);
 
@@ -77,7 +77,7 @@ export default function GroupPage() {
   const [editedAthkarReadingTime, setEditedAthkarReadingTime] = useState('');
 
   const [deletingAthkar, setDeletingAthkar] = useState<AthkarInSession | null>(null);
-  
+
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
@@ -123,14 +123,14 @@ export default function GroupPage() {
   }, [isHapticsEnabled, isClient]);
 
   const getStoredGroups = useCallback((): AthkarGroup[] => {
-    if (!isClient) return []; 
+    if (!isClient) return [];
     const storedGroupsString = localStorage.getItem(GROUPS_STORAGE_KEY);
     if (storedGroupsString) {
-        try {
-            return JSON.parse(storedGroupsString) as AthkarGroup[];
-        } catch (e) {
-            console.error("Failed to parse groups from localStorage:", e);
-        }
+      try {
+        return JSON.parse(storedGroupsString) as AthkarGroup[];
+      } catch (e) {
+        console.error("Failed to parse groups from localStorage:", e);
+      }
     }
     return [];
   }, [isClient]);
@@ -138,12 +138,12 @@ export default function GroupPage() {
   const saveStoredGroupsToLocalStorage = useCallback((updatedGroups: AthkarGroup[]) => {
     if (!isClient) return;
     try {
-        localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
+      localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
     } catch (e) {
-        console.error("Failed to save groups to localStorage:", e);
+      console.error("Failed to save groups to localStorage:", e);
     }
   }, [isClient]);
-  
+
   const saveCurrentGroupStructureRef = useRef((updatedGroupData: AthkarGroup) => {
     if (!isClient) return;
     const storedGroups = getStoredGroups();
@@ -151,7 +151,7 @@ export default function GroupPage() {
     if (groupIndex !== -1) {
       storedGroups[groupIndex] = updatedGroupData;
     } else {
-       storedGroups.push(updatedGroupData); 
+      storedGroups.push(updatedGroupData);
     }
     saveStoredGroupsToLocalStorage(storedGroups);
   });
@@ -164,14 +164,14 @@ export default function GroupPage() {
       const currentStoredGroup = storedGroups.find(g => g.id === groupId);
 
       if (currentStoredGroup) {
-          const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
-          ...thikr, 
-          sessionProgress: 0, 
-          isSessionHidden: false, 
-          }));
-          setGroup({ ...currentStoredGroup, athkar: athkarInSession });
+        const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
+          ...thikr,
+          sessionProgress: 0,
+          isSessionHidden: false,
+        }));
+        setGroup({ ...currentStoredGroup, athkar: athkarInSession });
       } else {
-          setGroup(null); 
+        setGroup(null);
       }
       setIsLoading(false);
     }
@@ -179,23 +179,22 @@ export default function GroupPage() {
 
 
   useEffect(() => {
-    if(isClient && groupId){
-        loadGroup();
-         // When the group (identified by its ID) changes, clear the session completion log
-        if (group?.id) { 
-             sessionCompletedAthkarIdsRef.current.clear();
-             console.log(`SESSION_REF_LOG: Cleared sessionCompletedAthkarIdsRef for group ${group.id} during loadGroup or groupId change.`);
-        }
+    if (isClient && groupId) {
+      loadGroup();
     }
-  }, [loadGroup, isClient, groupId, group?.id]); // Added group?.id here to ensure it runs when group itself changes
+  }, [isClient, groupId, loadGroup]);
+
+  useEffect(() => {
+    if (group?.id) {
+      sessionCompletedAthkarIdsRef.current.clear();
+      console.log(`SESSION_REF_LOG: Cleared sessionCompletedAthkarIdsRef for group ${group.id}`);
+    }
+  }, [group?.id]);
 
 
   const updateSeparateAthkarLog = useCallback((athkarArabic: string, amountToAdd: number) => {
-    if (!isClient || amountToAdd <= 0) {
-        console.log(`LOG_UPDATE: Aborted for "${athkarArabic}". isClient: ${isClient}, amountToAdd: ${amountToAdd}`);
-        return;
-    }
-    console.log(`LOG_UPDATE: Entered updateSeparateAthkarLog for "${athkarArabic}" with amountToAdd: ${amountToAdd}`);
+    if (!isClient || amountToAdd <= 0) return;
+    console.log(`LOG_UPDATE: updateSeparateAthkarLog called for "${athkarArabic}" with amountToAdd: ${amountToAdd}`);
     try {
       const logString = localStorage.getItem(ATHKAR_LOG_STORAGE_KEY);
       let logData: Record<string, number> = {};
@@ -204,12 +203,12 @@ export default function GroupPage() {
           logData = JSON.parse(logString);
         } catch (parseError) {
           console.error("Failed to parse Athkar log data from localStorage:", parseError);
-          logData = {}; 
+          logData = {};
         }
       }
       const currentLoggedValue = logData[athkarArabic] || 0;
       logData[athkarArabic] = currentLoggedValue + amountToAdd;
-      
+
       localStorage.setItem(ATHKAR_LOG_STORAGE_KEY, JSON.stringify(logData));
       console.log(`LOG_UPDATE: Successfully updated log for "${athkarArabic}". Old: ${currentLoggedValue}, Added: ${amountToAdd}, New total: ${logData[athkarArabic]}`);
     } catch (e) {
@@ -220,7 +219,7 @@ export default function GroupPage() {
 
   const handleAddAthkar = useCallback(() => {
     if (!newAthkarArabic.trim() || !group) return;
-    
+
     const count = parseInt(newAthkarCount, 10);
     const readingTime = parseInt(newAthkarReadingTime, 10);
 
@@ -236,17 +235,17 @@ export default function GroupPage() {
     };
 
     const newAthkarInSession: AthkarInSession = {
-        ...newStoredAthkar,
-        sessionProgress: 0,
-        isSessionHidden: false,
+      ...newStoredAthkar,
+      sessionProgress: 0,
+      isSessionHidden: false,
     };
 
     setGroup(prevGroup => {
       if (!prevGroup) return null;
       const updatedAthkarList = [...prevGroup.athkar, newAthkarInSession];
-      const groupToSave: AthkarGroup = { 
-        ...prevGroup, 
-        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr) 
+      const groupToSave: AthkarGroup = {
+        ...prevGroup,
+        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
       };
       saveCurrentGroupStructureRef.current(groupToSave);
       return { ...prevGroup, athkar: updatedAthkarList };
@@ -276,25 +275,25 @@ export default function GroupPage() {
 
     if (editedAthkarCount.trim() && (isNaN(count) || count < 0)) return;
     if (editedAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) return;
-    
+
     setGroup(prevGroup => {
       if (!prevGroup || !editingAthkar) return prevGroup;
       const updatedAthkarList = prevGroup.athkar.map(a =>
         a.id === editingAthkar.id
-        ? {
-            ...a, 
+          ? {
+            ...a,
             arabic: editedAthkarArabic.trim(),
             virtue: editedAthkarVirtue.trim() || undefined,
             count: editedAthkarCount.trim() ? count : undefined,
             readingTimeSeconds: editedAthkarReadingTime.trim() ? readingTime : undefined,
           }
-        : a
+          : a
       );
-      const groupToSave: AthkarGroup = { 
-        ...prevGroup, 
-        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr) 
+      const groupToSave: AthkarGroup = {
+        ...prevGroup,
+        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
       };
-      saveCurrentGroupStructureRef.current(groupToSave); 
+      saveCurrentGroupStructureRef.current(groupToSave);
       return { ...prevGroup, athkar: updatedAthkarList };
     });
 
@@ -308,21 +307,21 @@ export default function GroupPage() {
 
   const handleDeleteAthkar = useCallback(() => {
     if (!deletingAthkar || !group) return;
-     setGroup(prevGroup => {
-        if (!prevGroup || !deletingAthkar) return prevGroup;
-        const updatedAthkarList = prevGroup.athkar.filter(a => a.id !== deletingAthkar.id);
-        const groupToSave: AthkarGroup = { 
-          ...prevGroup, 
-          athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr) 
-        };
-        saveCurrentGroupStructureRef.current(groupToSave);
-        return { ...prevGroup, athkar: updatedAthkarList };
-     });
+    setGroup(prevGroup => {
+      if (!prevGroup || !deletingAthkar) return prevGroup;
+      const updatedAthkarList = prevGroup.athkar.filter(a => a.id !== deletingAthkar.id);
+      const groupToSave: AthkarGroup = {
+        ...prevGroup,
+        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
+      };
+      saveCurrentGroupStructureRef.current(groupToSave);
+      return { ...prevGroup, athkar: updatedAthkarList };
+    });
     setDeletingAthkar(null);
   }, [deletingAthkar, group]);
 
 
- const handleIncrementCount = useCallback((athkarId: string) => {
+  const handleIncrementCount = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
         if (!prevGroup) return null;
 
@@ -330,34 +329,33 @@ export default function GroupPage() {
         if (athkarIndex === -1) return prevGroup;
 
         const currentThikr = prevGroup.athkar[athkarIndex];
-        const targetCount = currentThikr.count || 1;
+        // Capture state BEFORE this specific increment logic runs
+        const wasSessionHiddenPriorToThisUpdate = currentThikr.isSessionHidden; 
         
-        // Check if already marked as completed for this session in the ref, to prevent re-logging
-        if (sessionCompletedAthkarIdsRef.current.has(athkarId) && currentThikr.isSessionHidden) {
-            console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) is already session hidden AND logged. No action or log.`);
-            return prevGroup; // No change if already session hidden and logged
-        }
-
         let newSessionProgress = currentThikr.sessionProgress;
         let newIsSessionHidden = currentThikr.isSessionHidden;
 
-        if (!currentThikr.isSessionHidden) { // Only allow progress if not already hidden
+        // Only allow progress if not already hidden (completed in this session)
+        if (!wasSessionHiddenPriorToThisUpdate) {
+            const targetCount = currentThikr.count || 1;
             newSessionProgress = Math.min(currentThikr.sessionProgress + 1, targetCount);
-        }
 
-        // Check for session completion event only if it wasn't hidden before this increment
-        if (!currentThikr.isSessionHidden && newSessionProgress >= targetCount) {
-            newIsSessionHidden = true; // Mark as hidden for the UI for this session
+            // Check for session completion event
+            if (newSessionProgress >= targetCount) {
+                newIsSessionHidden = true; // Mark as hidden for the UI for this session
 
-            // Log to persistent storage ONLY if not already logged this session via ref
-            if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-                console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) MET COMPLETION in session. Target: ${targetCount}. WILL LOG to persistent store.`);
-                updateSeparateAthkarLog(currentThikr.arabic, targetCount);
-                sessionCompletedAthkarIdsRef.current.add(athkarId); // Mark as logged for this session
-                console.log(`SESSION_REF_LOG: Added ${athkarId} to sessionCompletedAthkarIdsRef.`);
-            } else {
-                console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) ALREADY LOGGED THIS SESSION (ref check). No new persistent log.`);
+                // Log to persistent storage ONLY if not already logged this session via ref
+                if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
+                    console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) MET COMPLETION in session. Target: ${targetCount}. WILL LOG to persistent store.`);
+                    updateSeparateAthkarLog(currentThikr.arabic, targetCount);
+                    sessionCompletedAthkarIdsRef.current.add(athkarId); // Mark as logged for this session
+                    console.log(`SESSION_REF_LOG: Added ${athkarId} to sessionCompletedAthkarIdsRef.`);
+                } else {
+                    console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) ALREADY LOGGED THIS SESSION (ref check). No new persistent log.`);
+                }
             }
+        } else {
+             console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) is already session hidden. No progress increment or log action.`);
         }
         
         const updatedAthkar = {
@@ -371,7 +369,7 @@ export default function GroupPage() {
         
         return { ...prevGroup, athkar: updatedAthkarList };
     });
-}, [updateSeparateAthkarLog]);
+  }, [updateSeparateAthkarLog]);
 
 
   const handleDecrementCount = useCallback((athkarId: string) => {
@@ -383,15 +381,13 @@ export default function GroupPage() {
           const targetCount = a.count || 1;
           let newIsSessionHiddenForUI = a.isSessionHidden;
 
-          // If it was hidden (completed) and now progress is less than target, make it visible again
-          // And remove from session completed ref if it was there, to allow re-completion and re-logging
           if (a.isSessionHidden && newSessionProgress < targetCount) {
             newIsSessionHiddenForUI = false;
             if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-                sessionCompletedAthkarIdsRef.current.delete(athkarId);
-                console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to decrement.`);
+              sessionCompletedAthkarIdsRef.current.delete(athkarId);
+              console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to decrement.`);
             }
-            console.log(`LOG_ACTION: Athkar ${a.id} (${a.arabic.substring(0,10)}) UN-COMPLETED in session by decrement. UI visible again. Session log state reset.`);
+            console.log(`LOG_ACTION: Athkar ${a.id} (${a.arabic.substring(0, 10)}) UN-COMPLETED in session by decrement. UI visible again. Session log state reset.`);
           }
           return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHiddenForUI };
         }
@@ -403,48 +399,44 @@ export default function GroupPage() {
 
   const handleToggleComplete = useCallback((athkarId: string) => {
     setGroup(prevGroup => {
-        if (!prevGroup) return null;
-        
-        const athkarIndex = prevGroup.athkar.findIndex(a => a.id === athkarId);
-        if (athkarIndex === -1) return prevGroup;
+      if (!prevGroup) return null;
 
-        const currentThikr = prevGroup.athkar[athkarIndex];
-        // This function should only work for athkar that are toggleable (count is 1 or undefined)
-        if (currentThikr.count && currentThikr.count > 1) return prevGroup; 
+      const athkarIndex = prevGroup.athkar.findIndex(a => a.id === athkarId);
+      if (athkarIndex === -1) return prevGroup;
 
-        const wasSessionHiddenPriorToThisToggle = currentThikr.isSessionHidden;
-        const newIsSessionHiddenForUI = !wasSessionHiddenPriorToThisToggle;
-       
-        // If transitioning to hidden (completed)
-        if (newIsSessionHiddenForUI && !wasSessionHiddenPriorToThisToggle) {
-            // Log to persistent storage ONLY if not already logged this session via ref
-            if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-                console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) (toggleable) COMPLETED in session. WILL LOG 1 to persistent store.`);
-                updateSeparateAthkarLog(currentThikr.arabic, 1); // Toggleable athkar log 1
-                sessionCompletedAthkarIdsRef.current.add(athkarId);
-                console.log(`SESSION_REF_LOG: Added ${athkarId} to sessionCompletedAthkarIdsRef.`);
-            } else {
-               console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) (toggleable) ALREADY LOGGED THIS SESSION (ref check). No new persistent log.`);
-            }
-        } 
-        // If transitioning to visible (un-completed)
-        else if (!newIsSessionHiddenForUI && wasSessionHiddenPriorToThisToggle) {
-            if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-                sessionCompletedAthkarIdsRef.current.delete(athkarId);
-                console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to toggle un-complete.`);
-            }
-             console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0,10)}) (toggleable) UN-COMPLETED in session. UI visible. Session log state reset.`);
+      const currentThikr = prevGroup.athkar[athkarIndex];
+      if (currentThikr.count && currentThikr.count > 1) return prevGroup;
+
+      const wasSessionHiddenPriorToThisToggle = currentThikr.isSessionHidden;
+      const newIsSessionHiddenForUI = !wasSessionHiddenPriorToThisToggle;
+
+      if (newIsSessionHiddenForUI && !wasSessionHiddenPriorToThisToggle) {
+        if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
+          console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) COMPLETED in session. WILL LOG 1 to persistent store.`);
+          updateSeparateAthkarLog(currentThikr.arabic, 1);
+          sessionCompletedAthkarIdsRef.current.add(athkarId);
+          console.log(`SESSION_REF_LOG: Added ${athkarId} to sessionCompletedAthkarIdsRef.`);
+        } else {
+          console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) ALREADY LOGGED THIS SESSION (ref check). No new persistent log.`);
         }
-       
-        const updatedAthkar = {
-            ...currentThikr,
-            isSessionHidden: newIsSessionHiddenForUI,
-            sessionProgress: newIsSessionHiddenForUI ? (currentThikr.count || 1) : 0 
-        };
-        const updatedAthkarList = [...prevGroup.athkar];
-        updatedAthkarList[athkarIndex] = updatedAthkar;
-       
-        return { ...prevGroup, athkar: updatedAthkarList };
+      }
+      else if (!newIsSessionHiddenForUI && wasSessionHiddenPriorToThisToggle) {
+        if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
+          sessionCompletedAthkarIdsRef.current.delete(athkarId);
+          console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to toggle un-complete.`);
+        }
+        console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) UN-COMPLETED in session. UI visible. Session log state reset.`);
+      }
+
+      const updatedAthkar = {
+        ...currentThikr,
+        isSessionHidden: newIsSessionHiddenForUI,
+        sessionProgress: newIsSessionHiddenForUI ? (currentThikr.count || 1) : 0
+      };
+      const updatedAthkarList = [...prevGroup.athkar];
+      updatedAthkarList[athkarIndex] = updatedAthkar;
+
+      return { ...prevGroup, athkar: updatedAthkarList };
     });
   }, [updateSeparateAthkarLog]);
 
@@ -459,12 +451,12 @@ export default function GroupPage() {
       console.log("SESSION_RESET: All Athkar in current group session reset. Separate log NOT affected. Session completion ref cleared.");
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-    sessionCompletedAthkarIdsRef.current.clear(); 
+    sessionCompletedAthkarIdsRef.current.clear();
   }, []);
 
   const onDragEndAthkar = useCallback((result: DropResult) => {
     if (!result.destination || !group) return;
-     setGroup(prevGroup => {
+    setGroup(prevGroup => {
       if (!prevGroup || !result.destination) return prevGroup;
       if (result.destination.index === result.source.index) return prevGroup;
 
@@ -472,9 +464,9 @@ export default function GroupPage() {
       const [movedAthkar] = reorderedAthkar.splice(result.source.index, 1);
       reorderedAthkar.splice(result.destination.index, 0, movedAthkar);
 
-      const groupToSave: AthkarGroup = { 
-        ...prevGroup, 
-        athkar: reorderedAthkar.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr) 
+      const groupToSave: AthkarGroup = {
+        ...prevGroup,
+        athkar: reorderedAthkar.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
       };
       saveCurrentGroupStructureRef.current(groupToSave);
       return { ...prevGroup, athkar: reorderedAthkar };
@@ -523,7 +515,8 @@ export default function GroupPage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground animate-slide-in-from-right">
+    <div dir="rtl" className="min-h-screen bg-background text-foreground">
+      <div className="flex flex-col items-center p-4 md:p-8 animate-slide-in-from-right">
         <header className="w-full max-w-4xl mb-4 flex justify-between items-center">
           <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={() => router.push('/')} variant="outline" size="icon" aria-label="العودة للرئيسية">
@@ -532,34 +525,34 @@ export default function GroupPage() {
             {isClient && (
               <>
                 <Button
-                    onClick={toggleTheme}
-                    variant="outline"
-                    size="icon"
-                    aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
+                  onClick={toggleTheme}
+                  variant="outline"
+                  size="icon"
+                  aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
                 >
-                    {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
                 <Button
-                    onClick={toggleSound}
-                    variant="outline"
-                    size="icon"
-                    aria-label={isSoundEnabled ? "تعطيل الصوت" : "تفعيل الصوت"}
+                  onClick={toggleSound}
+                  variant="outline"
+                  size="icon"
+                  aria-label={isSoundEnabled ? "تعطيل الصوت" : "تفعيل الصوت"}
                 >
-                    {isSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  {isSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                 </Button>
                 <Button
-                    onClick={toggleHaptics}
-                    variant="outline"
-                    size="icon"
-                    aria-label={isHapticsEnabled ? "تعطيل الاهتزاز" : "تفعيل الاهتزاز"}
+                  onClick={toggleHaptics}
+                  variant="outline"
+                  size="icon"
+                  aria-label={isHapticsEnabled ? "تعطيل الاهتزاز" : "تفعيل الاهتزاز"}
                 >
-                    {isHapticsEnabled ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                  {isHapticsEnabled ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
                 </Button>
               </>
             )}
           </div>
 
-           <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
               <Minus className="h-4 w-4" />
             </Button>
@@ -588,15 +581,15 @@ export default function GroupPage() {
         </header>
 
         <div className="w-full max-w-4xl text-center mb-6">
-            <h1 className="text-3xl font-bold text-primary truncate px-2" title={group.name}>
-                {group.name}
-            </h1>
+          <h1 className="text-3xl font-bold text-primary truncate px-2" title={group.name}>
+            {group.name}
+          </h1>
         </div>
 
-      {isClient && (
-        <DragDropContext onDragEnd={onDragEndAthkar}>
-          <main className="w-full max-w-2xl flex-grow">
-            <AthkarList
+        {isClient && (
+          <DragDropContext onDragEnd={onDragEndAthkar}>
+            <main className="w-full max-w-2xl flex-grow">
+              <AthkarList
                 athkarList={group.athkar}
                 onToggleComplete={handleToggleComplete}
                 onIncrementCount={handleIncrementCount}
@@ -605,11 +598,98 @@ export default function GroupPage() {
                 onDeleteAthkar={openDeleteAthkarDialog}
                 fontSizeMultiplier={fontSizeMultiplier}
                 isSortMode={isSortMode}
-            />
-          </main>
-        </DragDropContext>
-      )}
+              />
+            </main>
+          </DragDropContext>
+        )}
+        {editingAthkar && (
+          <Dialog open={isEditAthkarDialogOpen} onOpenChange={(open) => {
+            if (!open) setEditingAthkar(null);
+            setIsEditAthkarDialogOpen(open);
+          }}>
+            <DialogContent className="sm:max-w-md" dir="rtl">
+              <DialogHeader>
+                <DialogTitle>تعديل الذكر</DialogTitle>
+                <DialogDescription>
+                  قم بتعديل تفاصيل الذكر.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-athkar-arabic">نص الذكر (بالعربية)</Label>
+                  <Textarea
+                    id="edit-athkar-arabic"
+                    value={editedAthkarArabic}
+                    onChange={(e) => setEditedAthkarArabic(e.target.value)}
+                    lang="ar"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-athkar-virtue">فضل الذكر (اختياري)</Label>
+                  <Textarea
+                    id="edit-athkar-virtue"
+                    value={editedAthkarVirtue}
+                    onChange={(e) => setEditedAthkarVirtue(e.target.value)}
+                    lang="ar"
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-athkar-count">عدد التكرار (اختياري)</Label>
+                    <Input
+                      id="edit-athkar-count"
+                      type="number"
+                      value={editedAthkarCount}
+                      onChange={(e) => setEditedAthkarCount(e.target.value)}
+                      min="0"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
+                    <Input
+                      id="edit-athkar-reading-time"
+                      type="number"
+                      value={editedAthkarReadingTime}
+                      onChange={(e) => setEditedAthkarReadingTime(e.target.value)}
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline" onClick={() => { setIsEditAthkarDialogOpen(false); setEditingAthkar(null); }}>إلغاء</Button>
+                </DialogClose>
+                <Button onClick={handleEditAthkar}>حفظ التعديلات</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
+        {deletingAthkar && (
+          <AlertDialog open={!!deletingAthkar} onOpenChange={(open) => { if (!open) setDeletingAthkar(null); }}>
+            <AlertDialogContent dir="rtl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>هل أنت متأكد من حذف هذا الذكر؟</AlertDialogTitle>
+                <AlertDialogDescription>
+                  سيتم حذف الذكر "{deletingAthkar.arabic.substring(0, 20)}..." بشكل نهائي. هذا الإجراء لا يمكن التراجع عنه.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeletingAthkar(null)}>إلغاء</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAthkar}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  نعم، حذف الذكر
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
       <Dialog open={isAddAthkarDialogOpen} onOpenChange={setIsAddAthkarDialogOpen}>
         <DialogTrigger asChild>
           <Button
@@ -651,28 +731,28 @@ export default function GroupPage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="add-athkar-count">عدد التكرار (اختياري)</Label>
-                    <Input
-                        id="add-athkar-count"
-                        type="number"
-                        value={newAthkarCount}
-                        onChange={(e) => setNewAthkarCount(e.target.value)}
-                        placeholder="مثال: 3 أو 100"
-                        min="0"
-                    />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="add-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
-                    <Input
-                        id="add-athkar-reading-time"
-                        type="number"
-                        value={newAthkarReadingTime}
-                        onChange={(e) => setNewAthkarReadingTime(e.target.value)}
-                        placeholder="مثال: 15"
-                        min="0"
-                    />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="add-athkar-count">عدد التكرار (اختياري)</Label>
+                <Input
+                  id="add-athkar-count"
+                  type="number"
+                  value={newAthkarCount}
+                  onChange={(e) => setNewAthkarCount(e.target.value)}
+                  placeholder="مثال: 3 أو 100"
+                  min="0"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="add-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
+                <Input
+                  id="add-athkar-reading-time"
+                  type="number"
+                  value={newAthkarReadingTime}
+                  onChange={(e) => setNewAthkarReadingTime(e.target.value)}
+                  placeholder="مثال: 15"
+                  min="0"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -683,96 +763,6 @@ export default function GroupPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {editingAthkar && (
-        <Dialog open={isEditAthkarDialogOpen} onOpenChange={(open) => {
-            if (!open) setEditingAthkar(null);
-            setIsEditAthkarDialogOpen(open);
-        }}>
-          <DialogContent className="sm:max-w-md" dir="rtl">
-            <DialogHeader>
-              <DialogTitle>تعديل الذكر</DialogTitle>
-              <DialogDescription>
-                قم بتعديل تفاصيل الذكر.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-athkar-arabic">نص الذكر (بالعربية)</Label>
-                <Textarea
-                  id="edit-athkar-arabic"
-                  value={editedAthkarArabic}
-                  onChange={(e) => setEditedAthkarArabic(e.target.value)}
-                  lang="ar"
-                  rows={3}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-athkar-virtue">فضل الذكر (اختياري)</Label>
-                <Textarea
-                  id="edit-athkar-virtue"
-                  value={editedAthkarVirtue}
-                  onChange={(e) => setEditedAthkarVirtue(e.target.value)}
-                  lang="ar"
-                  rows={2}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                      <Label htmlFor="edit-athkar-count">عدد التكرار (اختياري)</Label>
-                      <Input
-                          id="edit-athkar-count"
-                          type="number"
-                          value={editedAthkarCount}
-                          onChange={(e) => setEditedAthkarCount(e.target.value)}
-                          min="0"
-                      />
-                  </div>
-                  <div className="grid gap-2">
-                      <Label htmlFor="edit-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
-                      <Input
-                          id="edit-athkar-reading-time"
-                          type="number"
-                          value={editedAthkarReadingTime}
-                          onChange={(e) => setEditedAthkarReadingTime(e.target.value)}
-                          min="0"
-                      />
-                  </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline" onClick={() => {setIsEditAthkarDialogOpen(false); setEditingAthkar(null);}}>إلغاء</Button>
-              </DialogClose>
-              <Button onClick={handleEditAthkar}>حفظ التعديلات</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {deletingAthkar && (
-        <AlertDialog open={!!deletingAthkar} onOpenChange={(open) => { if (!open) setDeletingAthkar(null); }}>
-          <AlertDialogContent dir="rtl">
-            <AlertDialogHeader>
-              <AlertDialogTitle>هل أنت متأكد من حذف هذا الذكر؟</AlertDialogTitle>
-              <AlertDialogDescription>
-                سيتم حذف الذكر "{deletingAthkar.arabic.substring(0,20)}..." بشكل نهائي. هذا الإجراء لا يمكن التراجع عنه.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setDeletingAthkar(null)}>إلغاء</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteAthkar}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                نعم، حذف الذكر
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
   );
 }
-
-    

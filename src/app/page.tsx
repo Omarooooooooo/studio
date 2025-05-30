@@ -99,11 +99,10 @@ export default function HomePage() {
   const [deletingGroup, setDeletingGroup] = useState<AthkarGroup | null>(null);
 
   const [hydrated, setHydrated] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light'); // Default to light, script handles initial
+  const [theme, setTheme] = useState<'light' | 'dark'>('light'); 
 
   useEffect(() => {
     // Theme is initially set by inline script in RootLayout
-    // This effect syncs React state and handles subsequent toggles
     const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
     setTheme(currentTheme);
     
@@ -212,38 +211,39 @@ export default function HomePage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground animate-slide-in-from-right">
-      <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
-            <Button
-                onClick={toggleTheme}
-                variant="outline"
-                size="icon"
-                aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
-            >
-                {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </Button>
+    <div dir="rtl" className="min-h-screen bg-background text-foreground">
+      <div className="flex flex-col items-center p-4 md:p-8 animate-slide-in-from-right">
+        <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
+          <Button
+            onClick={toggleTheme}
+            variant="outline"
+            size="icon"
+            aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
+          >
+            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </Button>
 
-        <h1 className="text-4xl font-bold text-primary text-center flex-grow">
-          أذكاري
-        </h1>
-           <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
-              <History className="h-5 w-5" />
-           </Button>
-      </header>
+          <h1 className="text-4xl font-bold text-primary text-center flex-grow">
+            أذكاري
+          </h1>
+          <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
+            <History className="h-5 w-5" />
+          </Button>
+        </header>
 
-      <main className="w-full max-w-xl flex-grow">
-        {groups.length === 0 ? (
-          <div className="text-center text-muted-foreground py-10 text-xl border-2 border-dashed border-border rounded-lg bg-card p-6">
-             <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-16 w-16 text-primary mb-4"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"></path><path d="M12 22v-1.5"></path><path d="M12 2.5V4"></path><path d="m4.5 11.5-.9-.9"></path><path d="m20.4 12.4-.9-.9"></path><path d="M2 12h1.5"></path><path d="M20.5 12H22"></path><path d="m4.5 12.5.9.9"></path><path d="m20.4 11.6.9.9"></path></svg>
-            <h2 className="text-2xl font-semibold text-foreground mb-3">لا توجد مجموعات أذكار بعد</h2>
-            <p className="text-muted-foreground mb-6">
-             اضغط على زر '+' في الأسفل لإضافة مجموعتك الأولى وابدأ رحلتك مع الأذكار المنظمة.
-            </p>
-            <Button size="lg" onClick={() => setIsAddDialogOpen(true)}>
+        <main className="w-full max-w-xl flex-grow">
+          {groups.length === 0 ? (
+            <div className="text-center text-muted-foreground py-10 text-xl border-2 border-dashed border-border rounded-lg bg-card p-6">
+              <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-16 w-16 text-primary mb-4"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"></path><path d="M12 22v-1.5"></path><path d="M12 2.5V4"></path><path d="m4.5 11.5-.9-.9"></path><path d="m20.4 12.4-.9-.9"></path><path d="M2 12h1.5"></path><path d="M20.5 12H22"></path><path d="m4.5 12.5.9.9"></path><path d="m20.4 11.6.9.9"></path></svg>
+              <h2 className="text-2xl font-semibold text-foreground mb-3">لا توجد مجموعات أذكار بعد</h2>
+              <p className="text-muted-foreground mb-6">
+                اضغط على زر '+' في الأسفل لإضافة مجموعتك الأولى وابدأ رحلتك مع الأذكار المنظمة.
+              </p>
+              <Button size="lg" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="ml-2 rtl:mr-0 rtl:ml-2" /> إضافة مجموعتي الأولى
-            </Button>
-          </div>
-        ) : (
+              </Button>
+            </div>
+          ) : (
             <DragDropContext onDragEnd={onDragEndGroup}>
               <Droppable droppableId="groupsDroppable" isDropDisabled={false}>
                 {(providedDroppable) => (
@@ -268,8 +268,72 @@ export default function HomePage() {
                 )}
               </Droppable>
             </DragDropContext>
-        )}
-      </main>
+          )}
+          {editingGroup && (
+            <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setEditingGroup(null);
+              }
+              setIsEditDialogOpen(isOpen);
+            }}>
+              <DialogContent className="sm:max-w-[425px]" dir="rtl">
+                <DialogHeader>
+                  <DialogTitle>تعديل اسم المجموعة</DialogTitle>
+                  <DialogDescription>
+                    أدخل الاسم الجديد لمجموعة "{editingGroup.name}".
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-group-name">الاسم الجديد</Label>
+                    <Input
+                      id="edit-group-name"
+                      value={editedGroupName}
+                      onChange={(e) => setEditedGroupName(e.target.value)}
+                      placeholder="الاسم الجديد للمجموعة"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setEditingGroup(null);
+                    }}>إلغاء</Button>
+                  </DialogClose>
+                  <Button onClick={handleEditGroup}>حفظ التعديلات</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {deletingGroup && (
+            <AlertDialog open={!!deletingGroup} onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setDeletingGroup(null);
+              }
+            }}>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>هل أنت متأكد من الحذف؟</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم حذف مجموعة "{deletingGroup.name}" وجميع الأذكار بداخلها بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setDeletingGroup(null)}>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteGroup}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    نعم، حذف المجموعة
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </main>
+      </div>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
@@ -307,72 +371,6 @@ export default function HomePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {editingGroup && (
-        <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen) {
-                setEditingGroup(null);
-            }
-            setIsEditDialogOpen(isOpen);
-        }}>
-          <DialogContent className="sm:max-w-[425px]" dir="rtl">
-            <DialogHeader>
-              <DialogTitle>تعديل اسم المجموعة</DialogTitle>
-              <DialogDescription>
-                أدخل الاسم الجديد لمجموعة "{editingGroup.name}".
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-group-name">الاسم الجديد</Label>
-                <Input
-                  id="edit-group-name"
-                  value={editedGroupName}
-                  onChange={(e) => setEditedGroupName(e.target.value)}
-                  placeholder="الاسم الجديد للمجموعة"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                 <Button variant="outline" onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setEditingGroup(null);
-                 }}>إلغاء</Button>
-              </DialogClose>
-              <Button onClick={handleEditGroup}>حفظ التعديلات</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {deletingGroup && (
-        <AlertDialog open={!!deletingGroup} onOpenChange={(isOpen) => {
-            if (!isOpen) {
-                setDeletingGroup(null);
-            }
-        }}>
-          <AlertDialogContent dir="rtl">
-            <AlertDialogHeader>
-              <AlertDialogTitle>هل أنت متأكد من الحذف؟</AlertDialogTitle>
-              <AlertDialogDescription>
-                سيتم حذف مجموعة "{deletingGroup.name}" وجميع الأذكار بداخلها بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setDeletingGroup(null)}>إلغاء</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteGroup}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                نعم، حذف المجموعة
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
   );
 }
-
-    
