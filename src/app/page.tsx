@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, History } from 'lucide-react'; // Added History
+import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, History } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided } from '@hello-pangea/dnd';
 
@@ -109,7 +109,7 @@ export default function HomePage() {
           const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
           const normalizedGroups = parsedGroups.map(group => ({
             ...group,
-            athkar: group.athkar || [], // Ensure athkar is always an array
+            athkar: group.athkar || [], 
           }));
           setGroups(normalizedGroups);
         } catch (e) {
@@ -224,7 +224,7 @@ export default function HomePage() {
             >
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </Button>
-          ) : <div className="w-10 h-10"></div> } {/* Spacer for theme button */}
+          ) : <div className="w-10 h-10"></div> }
 
         <h1 className="text-4xl font-bold text-primary text-center flex-grow">
           أذكاري
@@ -233,7 +233,7 @@ export default function HomePage() {
            <Button onClick={() => router.push('/athkar-log')} variant="outline" size="icon" aria-label="عرض سجل الأذكار">
               <History className="h-5 w-5" />
            </Button>
-        ) : <div className="w-10 h-10"></div>} {/* Spacer for log button */}
+        ) : <div className="w-10 h-10"></div>}
       </header>
 
       <main className="w-full max-w-xl flex-grow">
@@ -379,5 +379,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

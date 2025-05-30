@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AthkarLogStore } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card'; // Removed CardHeader, CardTitle as they are not used for now
-import { ArrowRight, History, ListOrdered, Loader2 } from 'lucide-react'; // Added Loader2
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowRight, History, ListOrdered, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
@@ -38,7 +38,7 @@ export default function AthkarLogPage() {
               arabic,
               totalCompletedRepetitions,
             }))
-            .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions); // Sort by most completed
+            .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions); 
           setLogEntries(entries);
           console.log("ATHKAR_LOG_PAGE: Loaded and processed log data:", entries);
         } else {
@@ -87,8 +87,8 @@ export default function AthkarLogPage() {
             </CardContent>
           </Card>
         ) : (
-          <ScrollArea className="h-[calc(100vh-12rem)]"> {/* Adjust height as needed */}
-            <div className="space-y-3 pr-4 rtl:pl-4 rtl:pr-0"> {/* Added padding for scrollbar */}
+          <ScrollArea className="h-[calc(100vh-12rem)]">
+            <div className="space-y-3 pr-4 rtl:pl-4 rtl:pr-0">
               {logEntries.map((entry) => (
                 <Card key={entry.arabic} className="shadow-sm">
                   <CardContent className="p-4 flex justify-between items-center">
