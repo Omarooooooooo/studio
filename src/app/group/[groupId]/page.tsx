@@ -400,7 +400,7 @@ export default function GroupPage() {
 
   return (
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
-      <header className="w-full max-w-4xl mb-6 flex justify-between items-center">
+      <header className="w-full max-w-4xl mb-4 flex justify-between items-center">
           <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={() => router.push('/')} variant="outline" size="icon" aria-label="العودة للرئيسية">
               <ArrowRight className="h-4 w-4" />
@@ -434,11 +434,7 @@ export default function GroupPage() {
               </>
             )}
           </div>
-          <div className="flex-grow text-center px-2">
-            <h1 className="text-2xl font-semibold text-primary truncate" title={group.name}>
-                {group.name}
-            </h1>
-           </div>
+          
            <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
               <Minus className="h-4 w-4" />
@@ -466,6 +462,12 @@ export default function GroupPage() {
             </Button>
           </div>
         </header>
+
+        <div className="w-full max-w-4xl text-center mb-6">
+            <h1 className="text-3xl font-bold text-primary" title={group.name}>
+                {group.name}
+            </h1>
+        </div>
       
       {isClient && (
         <DragDropContext onDragEnd={onDragEndAthkar}>
@@ -653,6 +655,5 @@ export default function GroupPage() {
     </div>
   );
 }
-
 
     
