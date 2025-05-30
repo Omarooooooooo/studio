@@ -36,7 +36,10 @@ export function AthkarItem({
 }: AthkarItemProps) {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 0;
   const currentCompletedCount = athkar.completedCount ?? 0;
+  // isFullyCompleted now considers if athkar.completed is true OR if count is met.
+  // For the card hiding logic, we will use athkar.completed directly.
   const isFullyCompleted = isCountable ? currentCompletedCount >= athkar.count : athkar.completed;
+
 
   const [isAutoCounting, setIsAutoCounting] = useState(false);
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,7 +62,7 @@ export function AthkarItem({
         autoCountIntervalRef.current = null;
       }
       if (isAutoCounting && (isFullyCompleted || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
-        setIsAutoCounting(false); // Ensure auto-counting stops if conditions no longer met
+        setIsAutoCounting(false); 
       }
     }
     return () => {
@@ -72,20 +75,26 @@ export function AthkarItem({
 
   const handleMainAction = useCallback(() => {
     if (isCountable) {
+      // For countable Athkar, if it's marked as 'completed' (e.g. by reset button),
+      // but count isn't met, first tap should effectively "uncomplete" it for this session
+      // by allowing increment. Otherwise, just increment.
+      if (athkar.completed && currentCompletedCount < athkar.count!) {
+         onToggleComplete(athkar.id); // This will set completed to false
+      }
       if (currentCompletedCount < athkar.count!) { 
         onIncrementCount(athkar.id);
       }
     } else {
       onToggleComplete(athkar.id);
     }
-  }, [isCountable, currentCompletedCount, athkar.count, athkar.id, onIncrementCount, onToggleComplete]);
+  }, [isCountable, currentCompletedCount, athkar.count, athkar.id, athkar.completed, onIncrementCount, onToggleComplete]);
 
 
   const handleToggleAutoCount = useCallback(() => {
     if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       if (isAutoCounting) {
         setIsAutoCounting(false);
-      } else if (!isFullyCompleted) { // Only start if not fully completed
+      } else if (!isFullyCompleted) { 
         setIsAutoCounting(true);
       }
     }
@@ -108,11 +117,11 @@ export function AthkarItem({
           </div>
         )}
         <p 
-          className="font-arabic text-foreground truncate flex-grow" 
+          className="font-arabic text-foreground truncate flex-grow text-center" 
           lang="ar" 
           dir="rtl"
           style={{ 
-            fontSize: `${baseFontSizeRem * fontSizeMultiplier * 0.75}rem`, // Adjusted for sort mode
+            fontSize: `${baseFontSizeRem * fontSizeMultiplier * 0.75}rem`, 
             lineHeight: `1.5` 
           }}
         >
@@ -121,9 +130,9 @@ export function AthkarItem({
       </Card>
     );
   }
-
+  // Hide card if athkar.completed is true and not in sort mode
   return (
-    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${isFullyCompleted && !isSortMode ? 'hidden' : 'bg-card'} ${isSortMode && isFullyCompleted ? 'opacity-60' : 'opacity-100'}`}>
+    <Card className={`w-full shadow-lg transition-all duration-300 ease-in-out transform hover:shadow-xl ${athkar.completed && !isSortMode ? 'hidden' : 'bg-card'} ${isSortMode && isFullyCompleted ? 'opacity-60' : 'opacity-100'}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-center">
@@ -132,7 +141,7 @@ export function AthkarItem({
                 <GripVertical size={20} />
               </div>
             )}
-            {athkar.text && <CardTitle className="text-lg font-semibold text-primary">{athkar.text}</CardTitle>}
+            {/* Removed athkar.text from here to give more space to arabic text if needed */}
           </div>
           <div className="flex items-center gap-1">
             {athkar.virtue && (
@@ -151,7 +160,7 @@ export function AthkarItem({
             </Button>
           </div>
         </div>
-        {athkar.category && <CardDescription className="text-xs text-muted-foreground mt-1">{athkar.category}</CardDescription>}
+        {athkar.category && <CardDescription className="text-xs text-muted-foreground mt-1 text-center">{athkar.category}</CardDescription>}
       </CardHeader>
 
       <CardContent className="pb-4">
@@ -181,13 +190,12 @@ export function AthkarItem({
 
         {isCountable ? (
           <div className="space-y-3">
-            {/* Repetition count text removed from here */}
             <div className="flex items-center justify-center gap-3 sm:gap-4 my-4">
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => onDecrementCount(athkar.id)}
-                disabled={currentCompletedCount === 0 || isAutoCounting}
+                disabled={currentCompletedCount === 0 || isAutoCounting || (athkar.completed && currentCompletedCount >= (athkar.count ?? 0) )}
                 aria-label="إنقاص العد"
                 className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
               >
@@ -196,10 +204,10 @@ export function AthkarItem({
 
               <button
                 onClick={handleMainAction}
-                disabled={isFullyCompleted || isAutoCounting}
-                aria-label={isFullyCompleted ? "مكتمل" : "زيادة العد"}
+                disabled={(isFullyCompleted && athkar.completed) || isAutoCounting}
+                aria-label={isFullyCompleted && athkar.completed ? "مكتمل" : "زيادة العد"}
                 className={`relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                            ${isFullyCompleted || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
+                            ${(isFullyCompleted && athkar.completed) || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
                   <circle
@@ -224,7 +232,7 @@ export function AthkarItem({
                     transform="rotate(-90 18 18)" 
                   />
                 </svg>
-                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${isFullyCompleted || isAutoCounting ? 'text-muted-foreground' : 'text-primary-foreground'}`}>
+                <span className={`relative z-10 text-xl sm:text-2xl font-semibold ${(isFullyCompleted && athkar.completed) || isAutoCounting ? 'text-muted-foreground' : 'text-primary-foreground'}`}>
                   {currentCompletedCount}
                 </span>
               </button>
@@ -234,7 +242,7 @@ export function AthkarItem({
                   variant={isAutoCounting ? "destructive" : "outline"}
                   size="icon"
                   onClick={handleToggleAutoCount}
-                  disabled={(!isAutoCounting && (isFullyCompleted || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
+                  disabled={(!isAutoCounting && (isFullyCompleted && athkar.completed || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0))}
                   className="rounded-full w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"
                   aria-label={isAutoCounting ? "إيقاف التعداد التلقائي" : "بدء التعداد التلقائي"}
                 >
@@ -266,7 +274,7 @@ export function AthkarItem({
             {isCountable && (
               <p className="rtl:text-right">التكرار: {currentCompletedCount} / {athkar.count}</p>
             )}
-            {!isCountable && athkar.readingTimeSeconds && <span />} {/* Placeholder for alignment if only reading time exists */}
+            {!isCountable && athkar.readingTimeSeconds && <span />} 
             {athkar.readingTimeSeconds && (
                 <p className="ltr:text-right rtl:text-left">زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
             )}
@@ -275,3 +283,4 @@ export function AthkarItem({
     </Card>
   );
 }
+

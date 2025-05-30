@@ -305,22 +305,22 @@ export default function GroupPage() {
   }, []);
 
   const handleToggleComplete = useCallback((athkarId: string) => {
-    updateAthkarInGroup(athkarId, a => ({ ...a, completed: !a.completed, completedCount: !a.completed ? (a.count ?? 1) : 0 }));
+    updateAthkarInGroup(athkarId, a => ({ ...a, completed: !a.completed, completedCount: !a.completed ? (a.completedCount ?? 0) + (a.count ?? 1) : a.completedCount }));
   }, [updateAthkarInGroup]);
 
   const handleIncrementCount = useCallback((athkarId: string) => {
     updateAthkarInGroup(athkarId, a => {
       const newCount = (a.completedCount ?? 0) + 1;
-      const isCompleted = a.count ? newCount >= a.count : false;
-      return { ...a, completedCount: newCount, completed: isCompleted };
+      const isNowCompleted = a.count ? newCount >= a.count : false;
+      return { ...a, completedCount: newCount, completed: isNowCompleted };
     });
   }, [updateAthkarInGroup]);
 
   const handleDecrementCount = useCallback((athkarId: string) => {
     updateAthkarInGroup(athkarId, a => {
       const newCount = Math.max(0, (a.completedCount ?? 0) - 1);
-      const isCompleted = a.count ? newCount >= a.count : false;
-      return { ...a, completedCount: newCount, completed: isCompleted };
+      const isNowCompleted = a.count ? newCount >= a.count : false;
+      return { ...a, completedCount: newCount, completed: isNowCompleted };
     });
   }, [updateAthkarInGroup]);
   
@@ -359,19 +359,19 @@ export default function GroupPage() {
       
       const updatedAthkarList = prevGroup.athkar.map(a => ({
         ...a,
-        completed: false, // Make Athkar reappear
-        completedCount: 0, // Reset visual counter for this session
+        completed: false, // Make all athkar visible
+        // completedCount remains unchanged to preserve log integrity
       }));
 
       const updatedGroup = { ...prevGroup, athkar: updatedAthkarList };
-      
-      // This will save the completedCount as 0 to localStorage for this group's Athkar.
-      // The log page will reflect this change for this group.
       saveCurrentGroupRef.current(updatedGroup); 
       
       return updatedGroup;
     });
-    toast({ title: "تم بنجاح", description: "تمت إعادة تعيين الأذكار لهذه الجلسة. عداداتها أصبحت صفراً، والسجل سيعكس هذا التغيير لهذه المجموعة." });
+    toast({ 
+        title: "تمت إعادة التعيين", 
+        description: "تم إظهار جميع الأذكار لهذه الجلسة. سجل التقدم الكلي لم يتأثر." 
+    });
   }, [toast]);
 
 
@@ -411,7 +411,7 @@ export default function GroupPage() {
 
   return (
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
-      <header className="w-full max-w-4xl mb-4 flex justify-between items-center">
+        <header className="w-full max-w-4xl mb-4 flex justify-between items-center">
           <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={() => router.push('/')} variant="outline" size="icon" aria-label="العودة للرئيسية">
               <ArrowRight className="h-4 w-4" />
