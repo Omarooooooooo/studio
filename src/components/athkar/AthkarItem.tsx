@@ -5,7 +5,7 @@ import type { StoredAthkar } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronUp } from 'lucide-react';
-import { useState, useEffect, useRef, useCallback, forwardRef } from 'react';
+import { useState, useEffect, useRef, useCallback, forwardRef, memo } from 'react';
 import type { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
 import type { AthkarInSession } from '@/app/group/[groupId]/page'; 
@@ -19,14 +19,12 @@ interface AthkarItemProps {
   onEdit: () => void;
   onDelete: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
-  draggableProps?: DraggableProvidedDraggableProps;
   fontSizeMultiplier: number;
   isSortMode: boolean;
   className?: string;
 }
 
-// Removed React.memo for troubleshooting drag handle
-export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
+export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
   athkar,
   onToggleComplete,
   onIncrementCount,
@@ -34,7 +32,6 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
   onEdit,
   onDelete,
   dragHandleProps,
-  draggableProps,
   fontSizeMultiplier,
   isSortMode,
   className,
@@ -107,8 +104,7 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
   if (isSortMode) {
     return (
       <div
-        ref={ref} // Applied here
-        {...draggableProps} // Applied here
+        ref={ref}
         className={cn(
           "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
           athkar.isSessionHidden ? 'opacity-60' : '', 
@@ -116,7 +112,7 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
         )}
       >
         <div
-          {...dragHandleProps} // Applied here
+          {...dragHandleProps}
           className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
           aria-label="اسحب لترتيب الذكر"
         >
@@ -138,11 +134,9 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
     );
   }
 
-  // Normal display mode (isSortMode is false)
   return (
     <div 
-      ref={ref} // Applied here
-      {...draggableProps} // Applied here
+      ref={ref}
       className={cn(
         "transition-all duration-300 ease-in-out overflow-hidden",
         athkar.isSessionHidden 
@@ -152,14 +146,14 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
       )}
     >
       <Card className={cn(
-          "w-full shadow-md hover:shadow-lg transition-shadow duration-200 ease-out",
+          "w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out", // Changed shadow-md hover:shadow-lg to shadow-sm hover:shadow-md
           'bg-card' 
         )}
       >
         <CardHeader className="pb-3 pt-3">
           <div className="flex justify-between items-start">
             <div
-              {...dragHandleProps} // Applied here
+              {...dragHandleProps}
               className={cn(
                 "p-1 text-muted-foreground hover:text-foreground",
                  "cursor-grab" 
@@ -293,11 +287,12 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
             </Button>
           )}
         </CardContent>
-        {(athkar.count || athkar.readingTimeSeconds) && (
-           <CardFooter className={cn("text-xs text-muted-foreground pt-2 pb-3 flex justify-between transition-all duration-300 ease-in-out", athkar.isSessionHidden ? "!p-0" : "")}>
+        {(athkar.count && athkar.count > 0 || athkar.readingTimeSeconds) && (
+           <CardFooter className={cn("text-xs text-muted-foreground pt-2 pb-3 flex justify-between transition-all duration-300 ease-in-out", athkar.isSessionHidden ? "!p-0" : "rtl:space-x-reverse ltr:space-x-2")}>
               {athkar.count && athkar.count > 0 && (
-                <p className="rtl:text-right">التكرار المطلوب: {athkar.count}</p>
+                <p className="rtl:text-right ltr:text-left">التكرار المطلوب: {athkar.count}</p>
               )}
+              {/* This span is to ensure justify-between works when only one item is present */}
               {!(athkar.count && athkar.count > 0) && athkar.readingTimeSeconds && <span />} 
               {athkar.readingTimeSeconds && (
                   <p className="ltr:text-right rtl:text-left">زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
@@ -307,7 +302,9 @@ export const AthkarItem = forwardRef<HTMLDivElement, AthkarItemProps>(({
       </Card>
     </div>
   );
-});
+}));
 
 AthkarItem.displayName = 'AthkarItem';
+    
+
     
