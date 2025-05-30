@@ -13,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
 import {
@@ -28,8 +27,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
+import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, ScrollText } from 'lucide-react';
+// import { useToast } from "@/hooks/use-toast"; // Toasts are being removed
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 
@@ -49,7 +48,7 @@ export default function HomePage() {
   const [deletingGroup, setDeletingGroup] = useState<AthkarGroup | null>(null);
 
   const [hydrated, setHydrated] = useState(false);
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Toasts are being removed
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -99,11 +98,12 @@ export default function HomePage() {
 
   const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
-      toast({
-        title: "خطأ",
-        description: "الرجاء إدخال اسم للمجموعة.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "خطأ",
+      //   description: "الرجاء إدخال اسم للمجموعة.",
+      //   variant: "destructive",
+      // });
+      alert("الرجاء إدخال اسم للمجموعة."); // Fallback if toasts are essential for validation
       return;
     }
     const newGroup: AthkarGroup = {
@@ -114,11 +114,11 @@ export default function HomePage() {
     setGroups((prevGroups) => [...prevGroups, newGroup]);
     setNewGroupName('');
     setIsAddDialogOpen(false);
-    toast({
-      title: "تم بنجاح",
-      description: `تمت إضافة مجموعة "${newGroup.name}".`,
-    });
-  }, [newGroupName, toast]);
+    // toast({
+    //   title: "تم بنجاح",
+    //   description: `تمت إضافة مجموعة "${newGroup.name}".`,
+    // });
+  }, [newGroupName]);
 
   const openEditDialog = useCallback((group: AthkarGroup) => {
     setEditingGroup(group);
@@ -128,11 +128,12 @@ export default function HomePage() {
 
   const handleEditGroup = useCallback(() => {
     if (!editingGroup || !editedGroupName.trim()) {
-      toast({
-        title: "خطأ",
-        description: "الرجاء إدخال اسم صحيح للمجموعة.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "خطأ",
+      //   description: "الرجاء إدخال اسم صحيح للمجموعة.",
+      //   variant: "destructive",
+      // });
+      alert("الرجاء إدخال اسم صحيح للمجموعة."); // Fallback
       return;
     }
     setGroups(prevGroups => 
@@ -140,11 +141,11 @@ export default function HomePage() {
     );
     setIsEditDialogOpen(false);
     setEditingGroup(null);
-    toast({
-      title: "تم التعديل",
-      description: `تم تغيير اسم المجموعة إلى "${editedGroupName.trim()}".`,
-    });
-  }, [editingGroup, editedGroupName, toast]);
+    // toast({
+    //   title: "تم التعديل",
+    //   description: `تم تغيير اسم المجموعة إلى "${editedGroupName.trim()}".`,
+    // });
+  }, [editingGroup, editedGroupName]);
 
   const openDeleteDialog = useCallback((group: AthkarGroup) => {
     setDeletingGroup(group);
@@ -153,14 +154,15 @@ export default function HomePage() {
 
   const handleDeleteGroup = useCallback(() => {
     if (!deletingGroup) return;
+    const groupName = deletingGroup.name;
     setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
     setDeletingGroup(null); 
-    toast({
-      title: "تم الحذف",
-      description: `تم حذف مجموعة "${deletingGroup.name}".`,
-      variant: "destructive",
-    });
-  }, [deletingGroup, toast]);
+    // toast({
+    //   title: "تم الحذف",
+    //   description: `تم حذف مجموعة "${groupName}".`,
+    //   variant: "destructive",
+    // });
+  }, [deletingGroup]);
 
   const onDragEndGroup = useCallback((result: DropResult) => {
     if (!result.destination) return;
@@ -186,21 +188,21 @@ export default function HomePage() {
   return (
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
       <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
-        <div className="w-10"></div> {/* Placeholder for left spacing */}
-        <h1 className="text-4xl font-bold text-primary">
+         {hydrated ? (
+            <Button 
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+                variant="outline" 
+                size="icon" 
+                aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
+            >
+                {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            </Button>
+          ) : <div className="w-10 h-10"></div> /* Placeholder for left button */ }
+
+        <h1 className="text-4xl font-bold text-primary text-center">
           أذكاري
         </h1>
-        {hydrated && (
-          <Button 
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-              variant="outline" 
-              size="icon" 
-              aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
-          >
-              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-          </Button>
-        )}
-        {!hydrated && <div className="w-10 h-10"></div>} {/* Placeholder for right button */}
+         <div className="w-10 h-10"></div> {/* Placeholder, was log button */}
       </header>
 
       <main className="w-full max-w-xl flex-grow">
@@ -231,7 +233,7 @@ export default function HomePage() {
                           <Card
                             ref={providedDraggable.innerRef}
                             {...providedDraggable.draggableProps}
-                            className="shadow-md hover:shadow-lg transition-shadow duration-300"
+                            className="shadow-md hover:shadow-lg" // Removed transition-shadow
                           >
                             <CardContent className="p-4 flex items-center justify-between space-x-2 rtl:space-x-reverse">
                               <div {...providedDraggable.dragHandleProps} className="p-2 cursor-grab text-muted-foreground hover:text-foreground">
@@ -374,5 +376,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

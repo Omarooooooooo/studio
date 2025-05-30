@@ -9,28 +9,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Loader2, Lightbulb } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+// import { useToast } from '@/hooks/use-toast'; // Toasts are being removed
 
 interface AthkarSuggestionsProps {
-  allAthkar: Athkar[]; // Assuming this is the list of all athkar from a specific group or context
+  allAthkar: Athkar[]; 
 }
 
 export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
   const [preferences, setPreferences] = useState<string>('');
   const [recommendations, setRecommendations] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Toasts are being removed
 
-  // currentAthkarStatus will be derived from allAthkar prop directly
-  // No need for separate state if allAthkar is always up-to-date from parent
 
   const handleGetSuggestions = useCallback(async () => {
     setIsLoading(true);
     setRecommendations([]);
 
     const completionHistory = allAthkar.map(a => ({
-      athkar: a.arabic, // Use Arabic text as the primary identifier for the athkar
-      completed: a.count ? (a.completedCount ?? 0) >= a.count : a.completed,
+      athkar: a.arabic, 
+      completed: a.count ? (a.completedCount ?? 0) >= a.count : !!a.completedCount, // Simplified: if count exists, check against it, else check if completedCount > 0
     }));
 
     const input: SuggestAthkarInput = {
@@ -43,35 +41,34 @@ export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
       if (result && result.recommendations) {
         setRecommendations(result.recommendations);
         if (result.recommendations.length === 0) {
-          toast({
-            title: "لا توجد اقتراحات محددة",
-            description: "أنت تقوم بعمل رائع، أو حاول تحسين تفضيلاتك!",
-          });
+          // toast({
+          //   title: "لا توجد اقتراحات محددة",
+          //   description: "أنت تقوم بعمل رائع، أو حاول تحسين تفضيلاتك!",
+          // });
         } else {
-            toast({
-                title: "اقتراحات جديدة",
-                description: "تم العثور على اقتراحات أذكار مخصصة لك."
-            })
+            // toast({
+            //     title: "اقتراحات جديدة",
+            //     description: "تم العثور على اقتراحات أذكار مخصصة لك."
+            // })
         }
       } else {
-        // This case might mean the flow returned null or an empty object, treat as no recommendations
         setRecommendations([]);
-        toast({
-            title: "لا توجد اقتراحات",
-            description: "لم يتمكن الذكاء الاصطناعي من إيجاد اقتراحات بناءً على المدخلات الحالية.",
-        });
+        // toast({
+        //     title: "لا توجد اقتراحات",
+        //     description: "لم يتمكن الذكاء الاصطناعي من إيجاد اقتراحات بناءً على المدخلات الحالية.",
+        // });
       }
     } catch (error) {
       console.error("Error fetching suggestions:", error);
-      toast({
-        title: "خطأ في الاقتراحات",
-        description: "لم نتمكن من جلب الاقتراحات. الرجاء المحاولة مرة أخرى.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "خطأ في الاقتراحات",
+      //   description: "لم نتمكن من جلب الاقتراحات. الرجاء المحاولة مرة أخرى.",
+      //   variant: "destructive",
+      // });
     } finally {
       setIsLoading(false);
     }
-  }, [allAthkar, preferences, toast]);
+  }, [allAthkar, preferences]);
 
   return (
     <Card className="mt-8 shadow-lg">
