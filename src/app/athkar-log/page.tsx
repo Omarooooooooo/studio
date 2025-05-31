@@ -53,10 +53,8 @@ export default function AthkarLogPage() {
             }))
             .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions);
           setLogEntries(entries);
-          console.log("ATHKAR_LOG_PAGE: Loaded and processed log data:", entries);
         } else {
           setLogEntries([]);
-          console.log("ATHKAR_LOG_PAGE: No log data found in localStorage.");
         }
       } catch (error) {
         console.error("Failed to load or parse Athkar log data:", error);
@@ -75,7 +73,6 @@ export default function AthkarLogPage() {
       try {
         localStorage.removeItem(ATHKAR_LOG_STORAGE_KEY);
         setLogEntries([]); // Clear displayed entries
-        console.log("ATHKAR_LOG_PAGE: All log data deleted.");
       } catch (error) {
         console.error("Failed to delete all Athkar log data:", error);
       }
@@ -92,9 +89,7 @@ export default function AthkarLogPage() {
           delete logData[deletingIndividualAthkar.arabic];
           localStorage.setItem(ATHKAR_LOG_STORAGE_KEY, JSON.stringify(logData));
           
-          // Reload data to reflect change
-          loadLogData();
-          console.log(`ATHKAR_LOG_PAGE: Deleted log data for "${deletingIndividualAthkar.arabic}".`);
+          loadLogData(); // Reload data to reflect change
         }
       } catch (error) {
         console.error(`Failed to delete log data for "${deletingIndividualAthkar.arabic}":`, error);
@@ -132,7 +127,7 @@ export default function AthkarLogPage() {
                 <Trash2 className="h-5 w-5" />
             </Button>
         ) : (
-            <div className="w-10 h-10"></div> /* Spacer to keep layout consistent */
+            <div className="w-10 h-10"></div> 
         )}
       </header>
 
@@ -176,7 +171,6 @@ export default function AthkarLogPage() {
         )}
       </main>
 
-      {/* AlertDialog for Deleting All Progress */}
       <AlertDialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
@@ -197,7 +191,6 @@ export default function AthkarLogPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* AlertDialog for Deleting Individual Progress */}
       {deletingIndividualAthkar && (
         <AlertDialog open={!!deletingIndividualAthkar} onOpenChange={() => setDeletingIndividualAthkar(null)}>
           <AlertDialogContent dir="rtl">

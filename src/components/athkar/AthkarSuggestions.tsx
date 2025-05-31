@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Athkar } from '@/types';
+import type { StoredAthkar } from '@/types'; // Changed Athkar to StoredAthkar
 import { suggestAthkar, type SuggestAthkarInput } from '@/ai/flows/suggest-athkar';
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Loader2, Lightbulb } from 'lucide-react';
-// import { useToast } from '@/hooks/use-toast'; // Toasts are being removed
+// import { useToast } from '@/hooks/use-toast'; // Toasts removed
 
 interface AthkarSuggestionsProps {
-  allAthkar: Athkar[]; 
+  allAthkar: StoredAthkar[]; // Changed Athkar to StoredAthkar
 }
 
 export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
   const [preferences, setPreferences] = useState<string>('');
   const [recommendations, setRecommendations] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  // const { toast } = useToast(); // Toasts are being removed
+  // const { toast } = useToast(); // Toasts removed
 
 
   const handleGetSuggestions = useCallback(async () => {
@@ -28,7 +28,12 @@ export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
 
     const completionHistory = allAthkar.map(a => ({
       athkar: a.arabic, 
-      completed: a.count ? (a.completedCount ?? 0) >= a.count : !!a.completedCount, // Simplified: if count exists, check against it, else check if completedCount > 0
+      // For simplicity, we assume if it's in the list, the user is aware of it.
+      // The actual completion for suggestions might be better handled by the AI
+      // based on the presence/absence or frequency if we had such data.
+      // For now, let's just mark all as 'not completed' or 'completed' based on a dummy logic.
+      // This part would need more sophisticated logic if actual completion rates affect suggestions.
+      completed: false, // Simplified: this needs actual user completion data to be meaningful for AI
     }));
 
     const input: SuggestAthkarInput = {
@@ -40,31 +45,11 @@ export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
       const result = await suggestAthkar(input);
       if (result && result.recommendations) {
         setRecommendations(result.recommendations);
-        if (result.recommendations.length === 0) {
-          // toast({
-          //   title: "لا توجد اقتراحات محددة",
-          //   description: "أنت تقوم بعمل رائع، أو حاول تحسين تفضيلاتك!",
-          // });
-        } else {
-            // toast({
-            //     title: "اقتراحات جديدة",
-            //     description: "تم العثور على اقتراحات أذكار مخصصة لك."
-            // })
-        }
       } else {
         setRecommendations([]);
-        // toast({
-        //     title: "لا توجد اقتراحات",
-        //     description: "لم يتمكن الذكاء الاصطناعي من إيجاد اقتراحات بناءً على المدخلات الحالية.",
-        // });
       }
     } catch (error) {
       console.error("Error fetching suggestions:", error);
-      // toast({
-      //   title: "خطأ في الاقتراحات",
-      //   description: "لم نتمكن من جلب الاقتراحات. الرجاء المحاولة مرة أخرى.",
-      //   variant: "destructive",
-      // });
     } finally {
       setIsLoading(false);
     }

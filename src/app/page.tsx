@@ -100,16 +100,13 @@ export default function HomePage() {
 
   const [hydrated, setHydrated] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light'); 
+  // const { toast } = useToast(); // Toasts removed
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
     const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    setTheme(initialTheme);
-    if (initialTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // Theme is applied by inline script in layout.tsx, this just syncs state
+    setTheme(initialTheme); 
     
     const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedGroupsString) {
@@ -216,8 +213,8 @@ export default function HomePage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-background text-foreground">
-      <div className="flex flex-col items-center p-4 md:p-8 animate-slide-in-from-right">
+    <div dir="rtl" className="min-h-screen bg-background text-foreground flex flex-col">
+      <div className="p-4 md:p-8 animate-slide-in-from-right flex-grow flex flex-col items-center">
         <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
           <Button
             onClick={toggleTheme}

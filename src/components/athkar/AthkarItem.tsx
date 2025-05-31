@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronUp } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd'; // DraggableProvidedDraggableProps removed
+import type { DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
 import type { AthkarInSession } from '@/app/group/[groupId]/page';
 
@@ -19,13 +19,12 @@ export interface AthkarItemProps {
   onEditAthkar: () => void;
   onDeleteAthkar: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
-  // draggableProps removed as it's handled by parent div in AthkarList
+  draggableProps?: DraggableProvidedDraggableProps | null | undefined;
+  innerRef?: (element: HTMLElement | null) => void;
   fontSizeMultiplier: number;
   isSortMode: boolean;
-  // className prop is no longer needed here for margins, parent handles spacing
 }
 
-// AthkarItemComponent is no longer a forwardRef for Draggable purposes
 const AthkarItemComponent: React.FC<AthkarItemProps> = ({
   athkar,
   onToggleComplete,
@@ -33,7 +32,9 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
   onDecrementCount,
   onEditAthkar,
   onDeleteAthkar,
-  dragHandleProps, // Only dragHandleProps is needed
+  dragHandleProps,
+  draggableProps,
+  innerRef,
   fontSizeMultiplier,
   isSortMode,
 }) => {
@@ -103,22 +104,21 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
 
   if (isSortMode) {
     return (
-      <div // This div is the root for sort mode, no longer needs ref/draggableProps from here
+      <div
+        ref={innerRef}
+        {...draggableProps}
         className={cn(
           "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
           athkar.isSessionHidden ? 'opacity-60' : ''
-          // className prop removed as margins are handled by parent div in AthkarList
         )}
       >
-        {dragHandleProps && ( // Render handle only in sort mode, and if props are available
-          <div
-            {...dragHandleProps}
-            className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
-            aria-label="اسحب لترتيب الذكر"
-          >
-            <GripVertical size={20} />
-          </div>
-        )}
+        <div
+          {...dragHandleProps}
+          className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
+          aria-label="اسحب لترتيب الذكر"
+        >
+          <GripVertical size={20} />
+        </div>
         <p
           className="flex-grow text-right font-arabic text-foreground truncate px-2"
           lang="ar"
@@ -137,27 +137,32 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
 
   // Normal mode
   return (
-    <div // This div is the root for normal mode, no longer needs ref/draggableProps from here
+    <div
+      ref={innerRef} 
+      {...draggableProps}
       className={cn(
         "transition-all duration-300 ease-in-out overflow-hidden",
         athkar.isSessionHidden && !isSortMode
-          ? "max-h-0 opacity-0 !py-0 !border-opacity-0" // This is the fade/collapse animation
+          ? "max-h-0 opacity-0 !py-0 !border-opacity-0"
           : "max-h-[1000px] opacity-100"
-        // className prop removed
       )}
     >
       <Card className={cn(
-          "w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out", // Consistent shadow
+          "w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
           'bg-card'
         )}
       >
         <CardHeader className="pb-3 pt-3">
           <div className="flex justify-between items-start">
-             {/* Drag handle could be placed here if needed in normal mode, but only active based on isSortMode passed to Draggable */}
-             {/* For now, we assume drag handle is only needed in sort mode based on previous UI */}
-             {/* If a permanent visual handle is desired in normal mode, it would not have dragHandleProps applied unless sort mode is also active at parent */}
-            <div className="w-8 h-8"> {/* Placeholder for spacing if handle is not shown */}
-                {/* The handle from sort mode is not rendered here in normal display */}
+            <div 
+              {...dragHandleProps}
+              className={cn(
+                "p-1.5 text-muted-foreground",
+                isSortMode ? "cursor-grab hover:text-foreground" : "cursor-default opacity-50" 
+              )}
+              aria-label="اسحب لترتيب الذكر"
+            >
+              <GripVertical size={20} />
             </div>
 
             <div className="flex items-center gap-1">
