@@ -150,34 +150,44 @@ export default function GroupPage() {
     }
   }, [isClient]);
 
-  const saveCurrentGroupStructureRef = useRef((updatedGroupData: AthkarGroup) => {
+  const saveCurrentGroupStructure = useCallback((updatedGroupData: AthkarGroup) => {
     if (!isClient) return;
+    // console.log("SAVE_STRUCTURE: Saving group structure for ID:", updatedGroupData.id, "Athkar count:", updatedGroupData.athkar.length);
     const storedGroups = getStoredGroups();
     const groupIndex = storedGroups.findIndex(g => g.id === updatedGroupData.id);
     if (groupIndex !== -1) {
-      storedGroups[groupIndex] = updatedGroupData;
+        storedGroups[groupIndex] = updatedGroupData;
     } else {
-      // Should not happen if loading correctly, but as a fallback
-      storedGroups.push(updatedGroupData);
+        // This part should ideally not be reached if the group was loaded correctly.
+        console.warn("GROUP_PAGE: Attempted to save structure for a group not found in storedGroups. Adding it.", updatedGroupData);
+        storedGroups.push(updatedGroupData);
     }
     saveStoredGroupsToLocalStorage(storedGroups);
-  });
+  }, [isClient, getStoredGroups, saveStoredGroupsToLocalStorage]);
 
 
   const loadGroup = useCallback(() => {
     if (groupId && isClient) {
       setIsLoading(true);
+      console.log(`LOAD_GROUP: Attempting to load group with ID: ${groupId}`);
       const storedGroups = getStoredGroups();
+      console.log(`LOAD_GROUP: Found ${storedGroups.length} groups in localStorage.`);
       const currentStoredGroup = storedGroups.find(g => g.id === groupId);
 
       if (currentStoredGroup) {
-        const athkarInSession: AthkarInSession[] = (currentStoredGroup.athkar || []).map(thikr => ({
+        console.log(`LOAD_GROUP: Found group: ${currentStoredGroup.name}. Athkar count in storage: ${currentStoredGroup.athkar?.length || 0}`);
+        console.log(`LOAD_GROUP: Athkar from storage:`, JSON.stringify(currentStoredGroup.athkar));
+
+        const validAthkarArray = Array.isArray(currentStoredGroup.athkar) ? currentStoredGroup.athkar : [];
+        const athkarInSession: AthkarInSession[] = validAthkarArray.map(thikr => ({
           ...thikr,
           sessionProgress: 0,
           isSessionHidden: false,
         }));
         setGroup({ ...currentStoredGroup, athkar: athkarInSession });
+        console.log(`LOAD_GROUP: Set group state with ${athkarInSession.length} athkar for UI.`);
       } else {
+        console.log(`LOAD_GROUP: Group with ID ${groupId} not found.`);
         setGroup(null);
       }
       setIsLoading(false);
@@ -201,7 +211,7 @@ export default function GroupPage() {
 
   const updateSeparateAthkarLog = useCallback((athkarArabic: string, amountToAdd: number) => {
     if (!isClient || amountToAdd <= 0) return;
-    console.log(`LOG_UPDATE: updateSeparateAthkarLog called for "${athkarArabic}" with amountToAdd: ${amountToAdd}`);
+    console.log(`LOG_UPDATE: Attempting to update separate log for "${athkarArabic}" by ${amountToAdd}`);
     try {
       const logString = localStorage.getItem(ATHKAR_LOG_STORAGE_KEY);
       let logData: Record<string, number> = {};
@@ -210,7 +220,7 @@ export default function GroupPage() {
           logData = JSON.parse(logString);
         } catch (parseError) {
           console.error("Failed to parse Athkar log data from localStorage:", parseError);
-          logData = {}; // Reset if parsing fails
+          logData = {}; 
         }
       }
       const currentLoggedValue = logData[athkarArabic] || 0;
@@ -233,7 +243,7 @@ export default function GroupPage() {
     if (newAthkarCount.trim() && (isNaN(count) || count < 0)) return;
     if (newAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) return;
 
-    const newStoredAthkar: StoredAthkar = {
+    const newStoredAthkarItem: StoredAthkar = {
       id: Date.now().toString(),
       arabic: newAthkarArabic.trim(),
       virtue: newAthkarVirtue.trim() || undefined,
@@ -242,20 +252,24 @@ export default function GroupPage() {
     };
 
     const newAthkarInSession: AthkarInSession = {
-      ...newStoredAthkar,
+      ...newStoredAthkarItem,
       sessionProgress: 0,
       isSessionHidden: false,
     };
 
     setGroup(prevGroup => {
       if (!prevGroup) return null;
-      const updatedAthkarList = [...prevGroup.athkar, newAthkarInSession];
+      const updatedAthkarListForUI = [...prevGroup.athkar, newAthkarInSession];
+      
       const groupToSave: AthkarGroup = {
-        ...prevGroup,
-        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
+        ...prevGroup, // Spreads GroupInSession, but we only care about id, name, and athkar for AthkarGroup
+        id: prevGroup.id,
+        name: prevGroup.name,
+        athkar: updatedAthkarListForUI.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
       };
-      saveCurrentGroupStructureRef.current(groupToSave);
-      return { ...prevGroup, athkar: updatedAthkarList };
+      console.log("ADD_ATHKAR: Group to save to localStorage:", JSON.stringify(groupToSave.athkar));
+      saveCurrentGroupStructure(groupToSave);
+      return { ...prevGroup, athkar: updatedAthkarListForUI };
     });
 
     setNewAthkarArabic('');
@@ -263,7 +277,7 @@ export default function GroupPage() {
     setNewAthkarCount('');
     setNewAthkarReadingTime('');
     setIsAddAthkarDialogOpen(false);
-  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, group]);
+  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, group, saveCurrentGroupStructure]);
 
   const openEditAthkarDialog = useCallback((athkarToEdit: AthkarInSession) => {
     setEditingAthkar(athkarToEdit);
@@ -285,7 +299,7 @@ export default function GroupPage() {
 
     setGroup(prevGroup => {
       if (!prevGroup || !editingAthkar) return prevGroup;
-      const updatedAthkarList = prevGroup.athkar.map(a =>
+      const updatedAthkarListForUI = prevGroup.athkar.map(a =>
         a.id === editingAthkar.id
           ? {
             ...a,
@@ -297,16 +311,17 @@ export default function GroupPage() {
           : a
       );
       const groupToSave: AthkarGroup = {
-        ...prevGroup,
-        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
+        id: prevGroup.id,
+        name: prevGroup.name,
+        athkar: updatedAthkarListForUI.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
       };
-      saveCurrentGroupStructureRef.current(groupToSave);
-      return { ...prevGroup, athkar: updatedAthkarList };
+      saveCurrentGroupStructure(groupToSave);
+      return { ...prevGroup, athkar: updatedAthkarListForUI };
     });
 
     setIsEditAthkarDialogOpen(false);
     setEditingAthkar(null);
-  }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue, group]);
+  }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue, group, saveCurrentGroupStructure]);
 
   const openDeleteAthkarDialog = useCallback((athkarToDelete: AthkarInSession) => {
     setDeletingAthkar(athkarToDelete);
@@ -316,16 +331,17 @@ export default function GroupPage() {
     if (!deletingAthkar || !group) return;
     setGroup(prevGroup => {
       if (!prevGroup || !deletingAthkar) return prevGroup;
-      const updatedAthkarList = prevGroup.athkar.filter(a => a.id !== deletingAthkar.id);
+      const updatedAthkarListForUI = prevGroup.athkar.filter(a => a.id !== deletingAthkar.id);
       const groupToSave: AthkarGroup = {
-        ...prevGroup,
-        athkar: updatedAthkarList.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
+        id: prevGroup.id,
+        name: prevGroup.name,
+        athkar: updatedAthkarListForUI.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
       };
-      saveCurrentGroupStructureRef.current(groupToSave);
-      return { ...prevGroup, athkar: updatedAthkarList };
+      saveCurrentGroupStructure(groupToSave);
+      return { ...prevGroup, athkar: updatedAthkarListForUI };
     });
     setDeletingAthkar(null);
-  }, [deletingAthkar, group]);
+  }, [deletingAthkar, group, saveCurrentGroupStructure]);
 
 
   const handleIncrementCount = useCallback((athkarId: string) => {
@@ -384,15 +400,11 @@ export default function GroupPage() {
           const targetCount = a.count || 1;
           let newIsSessionHiddenForUI = a.isSessionHidden;
 
-          // If it was hidden and now progress is less than target, make it visible again
-          // and remove from session completion ref if it was there
           if (a.isSessionHidden && newSessionProgress < targetCount) {
-            newIsSessionHiddenForUI = false; // Make it visible in UI
+            newIsSessionHiddenForUI = false; 
             if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
               sessionCompletedAthkarIdsRef.current.delete(athkarId);
               console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to decrement.`);
-              // NOTE: We do NOT subtract from the persistent log here.
-              // The persistent log is cumulative. Resetting session is fine.
             }
             console.log(`LOG_ACTION: Athkar ${a.id} (${a.arabic.substring(0, 10)}) UN-COMPLETED in session by decrement. UI visible again. Session log state reset for this athkar.`);
           }
@@ -412,29 +424,25 @@ export default function GroupPage() {
       if (athkarIndex === -1) return prevGroup;
 
       const currentThikr = prevGroup.athkar[athkarIndex];
-      // This toggle is primarily for athkar with count 1 or undefined count
-      if (currentThikr.count && currentThikr.count > 1) return prevGroup; // Should use increment/decrement for these
+      if (currentThikr.count && currentThikr.count > 1) return prevGroup; 
 
       const wasSessionHiddenPriorToThisToggle = currentThikr.isSessionHidden;
       const newIsSessionHiddenForUI = !wasSessionHiddenPriorToThisToggle;
 
-      // If transitioning from not hidden to hidden (i.e., completing)
       if (newIsSessionHiddenForUI && !wasSessionHiddenPriorToThisToggle) {
         if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
           console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) COMPLETED in session. WILL LOG 1 to persistent store.`);
-          updateSeparateAthkarLog(currentThikr.arabic, 1); // Log 1 for toggleable completion
+          updateSeparateAthkarLog(currentThikr.arabic, 1); 
           sessionCompletedAthkarIdsRef.current.add(athkarId);
           console.log(`SESSION_REF_LOG: Added ${athkarId} to sessionCompletedAthkarIdsRef.`);
         } else {
           console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) ALREADY LOGGED THIS SESSION (ref check). No new persistent log.`);
         }
       }
-      // If transitioning from hidden to not hidden (i.e., un-completing)
       else if (!newIsSessionHiddenForUI && wasSessionHiddenPriorToThisToggle) {
         if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
           sessionCompletedAthkarIdsRef.current.delete(athkarId);
           console.log(`SESSION_REF_LOG: Removed ${athkarId} from sessionCompletedAthkarIdsRef due to toggle un-complete.`);
-           // NOTE: We do NOT subtract from the persistent log here.
         }
         console.log(`LOG_ACTION: Athkar ${currentThikr.id} (${currentThikr.arabic.substring(0, 10)}) (toggleable) UN-COMPLETED in session. UI visible. Session log state reset for this athkar.`);
       }
@@ -471,18 +479,19 @@ export default function GroupPage() {
       if (!prevGroup || !result.destination) return prevGroup;
       if (result.destination.index === result.source.index) return prevGroup;
 
-      const reorderedAthkar = Array.from(prevGroup.athkar);
-      const [movedAthkar] = reorderedAthkar.splice(result.source.index, 1);
-      reorderedAthkar.splice(result.destination.index, 0, movedAthkar);
+      const reorderedAthkarForUI = Array.from(prevGroup.athkar);
+      const [movedAthkar] = reorderedAthkarForUI.splice(result.source.index, 1);
+      reorderedAthkarForUI.splice(result.destination.index, 0, movedAthkar);
 
       const groupToSave: AthkarGroup = {
-        ...prevGroup,
-        athkar: reorderedAthkar.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
+        id: prevGroup.id,
+        name: prevGroup.name,
+        athkar: reorderedAthkarForUI.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
       };
-      saveCurrentGroupStructureRef.current(groupToSave);
-      return { ...prevGroup, athkar: reorderedAthkar };
+      saveCurrentGroupStructure(groupToSave);
+      return { ...prevGroup, athkar: reorderedAthkarForUI };
     });
-  }, [group]);
+  }, [group, saveCurrentGroupStructure]);
 
   const handleIncrementFontSize = useCallback(() => {
     setFontSizeMultiplier(prev => Math.min(prev + 0.1, 2));
@@ -563,6 +572,12 @@ export default function GroupPage() {
             )}
           </div>
 
+          <div className="flex-grow text-center px-2">
+             <h1 className="text-2xl font-semibold text-primary truncate" title={group.name}>
+                {group.name}
+             </h1>
+          </div>
+
           <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={handleDecrementFontSize} variant="outline" size="icon" aria-label="تصغير الخط">
               <Minus className="h-4 w-4" />
@@ -591,11 +606,12 @@ export default function GroupPage() {
           </div>
         </header>
 
-        <div className="w-full max-w-4xl text-center mb-6">
+        {/* Group Name - was here, moved to header */}
+        {/* <div className="w-full max-w-4xl text-center mb-6">
           <h1 className="text-3xl font-bold text-primary truncate px-2" title={group.name}>
             {group.name}
           </h1>
-        </div>
+        </div> */}
 
         {isClient && (
           <DragDropContext onDragEnd={onDragEndAthkar}>
@@ -777,3 +793,4 @@ export default function GroupPage() {
     </div>
   );
 }
+
