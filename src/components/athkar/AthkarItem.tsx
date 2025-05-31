@@ -5,10 +5,10 @@ import type { StoredAthkar } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronUp } from 'lucide-react';
-import { useState, useEffect, useRef, useCallback, forwardRef, memo } from 'react';
-import type { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
-import type { AthkarInSession } from '@/app/group/[groupId]/page'; 
+import type { AthkarInSession } from '@/app/group/[groupId]/page';
 
 
 interface AthkarItemProps {
@@ -24,7 +24,8 @@ interface AthkarItemProps {
   className?: string;
 }
 
-export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
+// Removing React.memo for diagnostics
+export const AthkarItem = ({
   athkar,
   onToggleComplete,
   onIncrementCount,
@@ -35,13 +36,13 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
   fontSizeMultiplier,
   isSortMode,
   className,
-}, ref) => {
+}: AthkarItemProps) => {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 1;
   const currentSessionProgress = athkar.sessionProgress || 0;
-  
+
   const [isAutoCounting, setIsAutoCounting] = useState(false);
   const autoCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const stableOnIncrementCountRef = useRef(onIncrementCount);
   useEffect(() => {
     stableOnIncrementCountRef.current = onIncrementCount;
@@ -50,21 +51,19 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
   const [showVirtue, setShowVirtue] = useState(false);
 
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
     if (isAutoCounting && !athkar.isSessionHidden && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
-      autoCountIntervalRef.current = setInterval(() => {
-        if (stableOnIncrementCountRef.current) {
-             stableOnIncrementCountRef.current(athkar.id);
-        }
+      intervalId = setInterval(() => {
+        stableOnIncrementCountRef.current(athkar.id);
       }, athkar.readingTimeSeconds * 1000);
     } else {
-      if (autoCountIntervalRef.current) {
-        clearInterval(autoCountIntervalRef.current);
-        autoCountIntervalRef.current = null;
-      }
+      // Clear interval if conditions are not met or auto-counting is stopped
       if (isAutoCounting && (athkar.isSessionHidden || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
-        setIsAutoCounting(false);
+        setIsAutoCounting(false); // Ensure auto-counting state is reset
       }
     }
+    autoCountIntervalRef.current = intervalId; // Store for cleanup
+
     return () => {
       if (autoCountIntervalRef.current) {
         clearInterval(autoCountIntervalRef.current);
@@ -75,11 +74,11 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
 
   const handleMainAction = useCallback(() => {
     if (isCountable) {
-      if (!athkar.isSessionHidden) { 
+      if (!athkar.isSessionHidden) {
         onIncrementCount(athkar.id);
       }
     } else {
-      onToggleComplete(athkar.id); 
+      onToggleComplete(athkar.id);
     }
   }, [isCountable, athkar.isSessionHidden, athkar.id, onIncrementCount, onToggleComplete]);
 
@@ -88,26 +87,26 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
     if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       if (isAutoCounting) {
         setIsAutoCounting(false);
-      } else if (!athkar.isSessionHidden) { 
+      } else if (!athkar.isSessionHidden) {
         setIsAutoCounting(true);
       }
     }
   }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, athkar.isSessionHidden]);
 
+
   const circumference = 2 * Math.PI * 15.9155;
   const targetCountForProgress = athkar.count || 1;
   const progressPercentage = (currentSessionProgress / targetCountForProgress);
 
-  const baseFontSizeRem = 1.5; 
+  const baseFontSizeRem = 1.5;
   const baseLineHeight = 1.625;
 
   if (isSortMode) {
     return (
       <div
-        ref={ref}
         className={cn(
           "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
-          athkar.isSessionHidden ? 'opacity-60' : '', 
+          athkar.isSessionHidden ? 'opacity-60' : '',
           className
         )}
       >
@@ -135,19 +134,18 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
   }
 
   return (
-    <div 
-      ref={ref}
+    <div
       className={cn(
         "transition-all duration-300 ease-in-out overflow-hidden",
-        athkar.isSessionHidden 
-          ? "max-h-0 opacity-0 !py-0 !border-opacity-0" 
-          : "max-h-[1000px] opacity-100", 
+        athkar.isSessionHidden && !isSortMode
+          ? "max-h-0 opacity-0 !py-0 !border-opacity-0"
+          : "max-h-[1000px] opacity-100",
         className
       )}
     >
       <Card className={cn(
-          "w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out", // Changed shadow-md hover:shadow-lg to shadow-sm hover:shadow-md
-          'bg-card' 
+          "w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
+          'bg-card'
         )}
       >
         <CardHeader className="pb-3 pt-3">
@@ -155,8 +153,7 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
             <div
               {...dragHandleProps}
               className={cn(
-                "p-1 text-muted-foreground hover:text-foreground",
-                 "cursor-grab" 
+                "p-1 text-muted-foreground hover:text-foreground cursor-grab"
               )}
               aria-label={"اسحب لترتيب الذكر"}
             >
@@ -181,7 +178,7 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
           </div>
         </CardHeader>
 
-        <CardContent className={cn("pb-4 transition-all duration-300 ease-in-out", athkar.isSessionHidden ? "!p-0" : "")}>
+        <CardContent className={cn("pb-4 transition-all duration-300 ease-in-out", athkar.isSessionHidden && !isSortMode ? "!p-0" : "")}>
           <p
             className="text-center font-arabic text-foreground mb-4"
             lang="ar"
@@ -267,7 +264,7 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
                     {isAutoCounting ? <Pause size={20} /> : <Play size={20} />}
                   </Button>
                 ) : (
-                   <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> 
+                   <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div>
                 )}
               </div>
             </div>
@@ -287,13 +284,16 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
             </Button>
           )}
         </CardContent>
-        {(athkar.count && athkar.count > 0 || athkar.readingTimeSeconds) && (
-           <CardFooter className={cn("text-xs text-muted-foreground pt-2 pb-3 flex justify-between transition-all duration-300 ease-in-out", athkar.isSessionHidden ? "!p-0" : "rtl:space-x-reverse ltr:space-x-2")}>
+        {((athkar.count && athkar.count > 0) || athkar.readingTimeSeconds) && (!isSortMode || (isSortMode && athkar.isSessionHidden)) && (
+           <CardFooter className={cn(
+            "text-xs text-muted-foreground pt-2 pb-3 flex justify-between transition-all duration-300 ease-in-out",
+            (athkar.isSessionHidden && !isSortMode) ? "!p-0" : "rtl:space-x-reverse ltr:space-x-2"
+            )}
+           >
               {athkar.count && athkar.count > 0 && (
                 <p className="rtl:text-right ltr:text-left">التكرار المطلوب: {athkar.count}</p>
               )}
-              {/* This span is to ensure justify-between works when only one item is present */}
-              {!(athkar.count && athkar.count > 0) && athkar.readingTimeSeconds && <span />} 
+              {!(athkar.count && athkar.count > 0) && athkar.readingTimeSeconds && <span />}
               {athkar.readingTimeSeconds && (
                   <p className="ltr:text-right rtl:text-left">زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
               )}
@@ -302,9 +302,7 @@ export const AthkarItem = memo(forwardRef<HTMLDivElement, AthkarItemProps>(({
       </Card>
     </div>
   );
-}));
+};
 
-AthkarItem.displayName = 'AthkarItem';
-    
+// AthkarItem.displayName = 'AthkarItem'; // Not needed if not using forwardRef with memo
 
-    
