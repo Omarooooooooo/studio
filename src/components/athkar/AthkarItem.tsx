@@ -16,16 +16,16 @@ export interface AthkarItemProps {
   onToggleComplete: (id: string) => void;
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
-  onEditAthkar: () => void; // Renamed from onEdit for clarity
-  onDeleteAthkar: () => void; // Renamed from onDelete for clarity
+  onEditAthkar: () => void;
+  onDeleteAthkar: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
-  draggableProps?: DraggableProvidedDraggableProps; // Added to receive draggableProps
+  draggableProps?: DraggableProvidedDraggableProps;
   fontSizeMultiplier: number;
   isSortMode: boolean;
   className?: string;
 }
 
-export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
+const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
   athkar,
   onToggleComplete,
   onIncrementCount,
@@ -33,7 +33,7 @@ export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
   onEditAthkar,
   onDeleteAthkar,
   dragHandleProps,
-  draggableProps, // Consuming draggableProps
+  draggableProps,
   fontSizeMultiplier,
   isSortMode,
   className,
@@ -105,12 +105,12 @@ export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
   if (isSortMode) {
     return (
       <div
-        ref={ref} // Apply forwarded ref
-        {...draggableProps} // Apply draggableProps
+        ref={ref}
+        {...draggableProps}
         className={cn(
-          "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out mb-2",
+          "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
           athkar.isSessionHidden ? 'opacity-60' : '',
-          className
+          className // This className (e.g., 'mb-2') is passed from AthkarList
         )}
       >
         <div
@@ -137,15 +137,15 @@ export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
   }
 
   return (
-    <div // This div now receives ref and draggableProps
+    <div
       ref={ref}
       {...draggableProps}
       className={cn(
-        "transition-all duration-300 ease-in-out overflow-hidden mb-4",
+        "transition-all duration-300 ease-in-out overflow-hidden",
         athkar.isSessionHidden && !isSortMode
           ? "max-h-0 opacity-0 !py-0 !border-opacity-0"
           : "max-h-[1000px] opacity-100",
-        className
+        className // This className (e.g., 'mb-4') is passed from AthkarList
       )}
     >
       <Card className={cn(
@@ -159,7 +159,7 @@ export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
               {...dragHandleProps}
               className={cn(
                 "p-1 text-muted-foreground hover:text-foreground",
-                "cursor-grab" // Always grab if drag is enabled by list
+                "cursor-grab"
               )}
               aria-label={"اسحب لترتيب الذكر"}
             >
@@ -290,7 +290,7 @@ export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
             </Button>
           )}
         </CardContent>
-        {((athkar.count && athkar.count > 0) || athkar.readingTimeSeconds) && (
+        {((athkar.count && athkar.count > 0) || athkar.readingTimeSeconds) && !isSortMode && (
            <CardFooter className={cn(
             "text-xs text-muted-foreground pt-2 pb-3 flex justify-between transition-all duration-300 ease-in-out",
             (athkar.isSessionHidden && !isSortMode) ? "!p-0" : "rtl:space-x-reverse ltr:space-x-2"
@@ -309,4 +309,7 @@ export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
     </div>
   );
 });
-AthkarItem.displayName = 'AthkarItem';
+AthkarItemComponent.displayName = 'AthkarItemComponent';
+
+export const AthkarItem = React.memo(AthkarItemComponent);
+
