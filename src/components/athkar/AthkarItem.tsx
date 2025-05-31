@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronUp } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps } from '@hello-pangea/dnd';
+import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
 import type { AthkarInSession } from '@/app/group/[groupId]/page';
 
@@ -19,12 +19,11 @@ export interface AthkarItemProps {
   onEditAthkar: () => void;
   onDeleteAthkar: () => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
-  draggableProps?: DraggableProvidedDraggableProps | null | undefined;
-  innerRef?: (element: HTMLElement | null) => void;
   fontSizeMultiplier: number;
   isSortMode: boolean;
 }
 
+// Removed React.forwardRef as it's not needed with the current structure in AthkarList
 const AthkarItemComponent: React.FC<AthkarItemProps> = ({
   athkar,
   onToggleComplete,
@@ -33,8 +32,6 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
   onEditAthkar,
   onDeleteAthkar,
   dragHandleProps,
-  draggableProps,
-  innerRef,
   fontSizeMultiplier,
   isSortMode,
 }) => {
@@ -54,7 +51,12 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
   useEffect(() => {
     if (isAutoCounting && !athkar.isSessionHidden && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
       autoCountIntervalRef.current = setInterval(() => {
-        stableOnIncrementCountRef.current(athkar.id);
+        if (!sessionCompletedAthkarIdsRef.current.has(athkar.id)) { // Ensure not to increment if session already marked complete by auto-count
+            stableOnIncrementCountRef.current(athkar.id);
+        } else {
+            // If it got marked as complete (e.g. sessionProgress reached target), stop auto-counting.
+            setIsAutoCounting(false);
+        }
       }, athkar.readingTimeSeconds * 1000);
     } else {
       if (autoCountIntervalRef.current) {
@@ -94,6 +96,21 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
     }
   }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, athkar.isSessionHidden]);
 
+  // This ref is used by handleIncrementCount in the parent to avoid double logging
+  const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
+   useEffect(() => {
+    if(athkar.isSessionHidden && !sessionCompletedAthkarIdsRef.current.has(athkar.id)){
+        // This case can happen if the item was completed by toggle and then sort mode is entered
+        // Or if it was completed by auto-count and then UI re-renders
+        // Add to ref to prevent re-logging if handleIncrementCount is somehow called
+        // sessionCompletedAthkarIdsRef.current.add(athkar.id);
+    }
+    if(!athkar.isSessionHidden && sessionCompletedAthkarIdsRef.current.has(athkar.id)){
+        // If item becomes not hidden (e.g. session reset), clear from ref
+        sessionCompletedAthkarIdsRef.current.delete(athkar.id);
+    }
+  }, [athkar.isSessionHidden, athkar.id]);
+
 
   const circumference = 2 * Math.PI * 15.9155;
   const targetCountForProgress = athkar.count || 1;
@@ -104,16 +121,14 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
 
   if (isSortMode) {
     return (
-      <div
-        ref={innerRef}
-        {...draggableProps}
+      <div // Root for sort mode
         className={cn(
           "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
           athkar.isSessionHidden ? 'opacity-60' : ''
         )}
       >
-        <div
-          {...dragHandleProps}
+        <div // This is the drag handle in sort mode
+          {...dragHandleProps} 
           className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
           aria-label="اسحب لترتيب الذكر"
         >
@@ -137,30 +152,27 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
 
   // Normal mode
   return (
-    <div
-      ref={innerRef} 
-      {...draggableProps}
+    <div 
       className={cn(
         "transition-all duration-300 ease-in-out overflow-hidden",
         athkar.isSessionHidden && !isSortMode
-          ? "max-h-0 opacity-0 !py-0 !border-opacity-0"
-          : "max-h-[1000px] opacity-100"
+          ? "max-h-0 opacity-0 !py-0 !border-opacity-0" // Styles for hiding animation
+          : "max-h-[1000px] opacity-100" // Styles for showing
       )}
     >
       <Card className={cn(
           "w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
-          'bg-card'
+          'bg-card' 
         )}
       >
         <CardHeader className="pb-3 pt-3">
           <div className="flex justify-between items-start">
+            {/* Visual Grip Icon - Not the handle itself in normal mode as isDragDisabled is true */}
             <div 
-              {...dragHandleProps}
               className={cn(
-                "p-1.5 text-muted-foreground",
-                isSortMode ? "cursor-grab hover:text-foreground" : "cursor-default opacity-50" 
+                "p-1.5 text-muted-foreground cursor-default opacity-50" 
               )}
-              aria-label="اسحب لترتيب الذكر"
+              aria-label="اسحب لترتيب الذكر (مفعل في وضع الترتيب)"
             >
               <GripVertical size={20} />
             </div>
@@ -270,7 +282,7 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
                     {isAutoCounting ? <Pause size={20} /> : <Play size={20} />}
                   </Button>
                 ) : (
-                   <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div>
+                   <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0"></div> // Placeholder to keep layout consistent
                 )}
               </div>
             </div>
@@ -299,7 +311,7 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
               {athkar.count && athkar.count > 0 && (
                 <p className="rtl:text-right ltr:text-left">التكرار المطلوب: {athkar.count}</p>
               )}
-              {!(athkar.count && athkar.count > 0) && athkar.readingTimeSeconds && <span />}
+              {!(athkar.count && athkar.count > 0) && athkar.readingTimeSeconds && <span />} {/* Ensures space-between works if only reading time is present */}
               {athkar.readingTimeSeconds && (
                   <p className="ltr:text-right rtl:text-left">زمن القراءة المقدر: {athkar.readingTimeSeconds} ثانية</p>
               )}
@@ -311,4 +323,6 @@ const AthkarItemComponent: React.FC<AthkarItemProps> = ({
 };
 AthkarItemComponent.displayName = 'AthkarItemComponent';
 
-export const AthkarItem = React.memo(AthkarItemComponent);
+// Removing React.memo for diagnostic purposes
+export const AthkarItem = AthkarItemComponent;
+
