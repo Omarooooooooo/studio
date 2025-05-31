@@ -47,21 +47,20 @@ export function AthkarList({
         <div 
           {...provided.droppableProps}
           ref={provided.innerRef}
-          className={cn(isSortMode ? "space-y-2" : "space-y-4")} // Apply space-y here
+          className={cn("space-y-0")} // space-y will be handled by AthkarItem's margin
         >
           {athkarList.map((thikr, index) => (
             <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={false}>
               {(providedDraggable) => (
-                // AthkarItem is now the direct child that receives these props
                 <AthkarItem
-                  ref={providedDraggable.innerRef} // Pass ref to AthkarItem
+                  ref={providedDraggable.innerRef} // Pass innerRef as ref
                   draggableProps={providedDraggable.draggableProps} // Pass draggableProps
                   athkar={thikr}
                   onToggleComplete={onToggleComplete}
                   onIncrementCount={onIncrementCount}
                   onDecrementCount={onDecrementCount}
-                  onEdit={() => onEditAthkar(thikr)}
-                  onDelete={() => onDeleteAthkar(thikr)}
+                  onEditAthkar={() => onEditAthkar(thikr)}
+                  onDeleteAthkar={() => onDeleteAthkar(thikr)}
                   dragHandleProps={providedDraggable.dragHandleProps}
                   fontSizeMultiplier={fontSizeMultiplier}
                   isSortMode={isSortMode}

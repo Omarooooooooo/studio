@@ -5,38 +5,39 @@ import type { StoredAthkar } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronUp } from 'lucide-react';
-import { useState, useEffect, useRef, useCallback } from 'react';
-import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import type { DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
 import type { AthkarInSession } from '@/app/group/[groupId]/page';
 
 
-interface AthkarItemProps {
+export interface AthkarItemProps {
   athkar: AthkarInSession;
   onToggleComplete: (id: string) => void;
   onIncrementCount: (id: string) => void;
   onDecrementCount: (id: string) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEditAthkar: () => void; // Renamed from onEdit for clarity
+  onDeleteAthkar: () => void; // Renamed from onDelete for clarity
   dragHandleProps?: DraggableProvidedDragHandleProps | null | undefined;
+  draggableProps?: DraggableProvidedDraggableProps; // Added to receive draggableProps
   fontSizeMultiplier: number;
   isSortMode: boolean;
   className?: string;
 }
 
-// Removing React.memo for diagnostics
-export const AthkarItem = ({
+export const AthkarItem = React.forwardRef<HTMLDivElement, AthkarItemProps>(({
   athkar,
   onToggleComplete,
   onIncrementCount,
   onDecrementCount,
-  onEdit,
-  onDelete,
+  onEditAthkar,
+  onDeleteAthkar,
   dragHandleProps,
+  draggableProps, // Consuming draggableProps
   fontSizeMultiplier,
   isSortMode,
   className,
-}: AthkarItemProps) => {
+}, ref) => {
   const isCountable = typeof athkar.count === 'number' && athkar.count > 1;
   const currentSessionProgress = athkar.sessionProgress || 0;
 
@@ -51,19 +52,19 @@ export const AthkarItem = ({
   const [showVirtue, setShowVirtue] = useState(false);
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
     if (isAutoCounting && !athkar.isSessionHidden && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
-      intervalId = setInterval(() => {
+      autoCountIntervalRef.current = setInterval(() => {
         stableOnIncrementCountRef.current(athkar.id);
       }, athkar.readingTimeSeconds * 1000);
     } else {
-      // Clear interval if conditions are not met or auto-counting is stopped
+      if (autoCountIntervalRef.current) {
+        clearInterval(autoCountIntervalRef.current);
+        autoCountIntervalRef.current = null;
+      }
       if (isAutoCounting && (athkar.isSessionHidden || !isCountable || !athkar.readingTimeSeconds || athkar.readingTimeSeconds <= 0)) {
-        setIsAutoCounting(false); // Ensure auto-counting state is reset
+        setIsAutoCounting(false);
       }
     }
-    autoCountIntervalRef.current = intervalId; // Store for cleanup
-
     return () => {
       if (autoCountIntervalRef.current) {
         clearInterval(autoCountIntervalRef.current);
@@ -104,8 +105,10 @@ export const AthkarItem = ({
   if (isSortMode) {
     return (
       <div
+        ref={ref} // Apply forwarded ref
+        {...draggableProps} // Apply draggableProps
         className={cn(
-          "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
+          "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out mb-2",
           athkar.isSessionHidden ? 'opacity-60' : '',
           className
         )}
@@ -134,9 +137,11 @@ export const AthkarItem = ({
   }
 
   return (
-    <div
+    <div // This div now receives ref and draggableProps
+      ref={ref}
+      {...draggableProps}
       className={cn(
-        "transition-all duration-300 ease-in-out overflow-hidden",
+        "transition-all duration-300 ease-in-out overflow-hidden mb-4",
         athkar.isSessionHidden && !isSortMode
           ? "max-h-0 opacity-0 !py-0 !border-opacity-0"
           : "max-h-[1000px] opacity-100",
@@ -153,7 +158,8 @@ export const AthkarItem = ({
             <div
               {...dragHandleProps}
               className={cn(
-                "p-1 text-muted-foreground hover:text-foreground cursor-grab"
+                "p-1 text-muted-foreground hover:text-foreground",
+                "cursor-grab" // Always grab if drag is enabled by list
               )}
               aria-label={"اسحب لترتيب الذكر"}
             >
@@ -166,11 +172,11 @@ export const AthkarItem = ({
                   <span className="sr-only">{showVirtue ? 'إخفاء فضل الذكر' : 'عرض فضل الذكر'}</span>
                 </Button>
               )}
-              <Button variant="ghost" size="icon" onClick={onEdit} className="text-muted-foreground hover:text-blue-500 h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={onEditAthkar} className="text-muted-foreground hover:text-blue-500 h-8 w-8">
                 <Edit3 size={18} />
                 <span className="sr-only">تعديل الذكر</span>
               </Button>
-              <Button variant="ghost" size="icon" onClick={onDelete} className="text-muted-foreground hover:text-red-500 h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={onDeleteAthkar} className="text-muted-foreground hover:text-red-500 h-8 w-8">
                 <Trash2 size={18} />
                 <span className="sr-only">حذف الذكر</span>
               </Button>
@@ -284,7 +290,7 @@ export const AthkarItem = ({
             </Button>
           )}
         </CardContent>
-        {((athkar.count && athkar.count > 0) || athkar.readingTimeSeconds) && (!isSortMode || (isSortMode && athkar.isSessionHidden)) && (
+        {((athkar.count && athkar.count > 0) || athkar.readingTimeSeconds) && (
            <CardFooter className={cn(
             "text-xs text-muted-foreground pt-2 pb-3 flex justify-between transition-all duration-300 ease-in-out",
             (athkar.isSessionHidden && !isSortMode) ? "!p-0" : "rtl:space-x-reverse ltr:space-x-2"
@@ -302,7 +308,5 @@ export const AthkarItem = ({
       </Card>
     </div>
   );
-};
-
-// AthkarItem.displayName = 'AthkarItem'; // Not needed if not using forwardRef with memo
-
+});
+AthkarItem.displayName = 'AthkarItem';
