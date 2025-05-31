@@ -42,29 +42,33 @@ export function AthkarList({
   }
 
   return (
-    <Droppable droppableId="athkarDroppable" isDropDisabled={false}>
+    <Droppable droppableId="athkarDroppable" isDropDisabled={!isSortMode}>
       {(provided) => (
         <div 
           {...provided.droppableProps}
           ref={provided.innerRef}
-          className={cn("space-y-0")} // space-y will be handled by AthkarItem's margin
+          className={cn("space-y-0")} 
         >
           {athkarList.map((thikr, index) => (
-            <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={false}>
+            <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={!isSortMode}>
               {(providedDraggable) => (
-                <AthkarItem
-                  ref={providedDraggable.innerRef} // Pass innerRef as ref
-                  draggableProps={providedDraggable.draggableProps} // Pass draggableProps
-                  athkar={thikr}
-                  onToggleComplete={onToggleComplete}
-                  onIncrementCount={onIncrementCount}
-                  onDecrementCount={onDecrementCount}
-                  onEditAthkar={() => onEditAthkar(thikr)}
-                  onDeleteAthkar={() => onDeleteAthkar(thikr)}
-                  dragHandleProps={providedDraggable.dragHandleProps}
-                  fontSizeMultiplier={fontSizeMultiplier}
-                  isSortMode={isSortMode}
-                />
+                 <div
+                  ref={providedDraggable.innerRef}
+                  {...providedDraggable.draggableProps}
+                  className={cn(isSortMode ? 'mb-2' : 'mb-4')}
+                >
+                  <AthkarItem
+                    athkar={thikr}
+                    onToggleComplete={onToggleComplete}
+                    onIncrementCount={onIncrementCount}
+                    onDecrementCount={onDecrementCount}
+                    onEditAthkar={() => onEditAthkar(thikr)}
+                    onDeleteAthkar={() => onDeleteAthkar(thikr)}
+                    dragHandleProps={providedDraggable.dragHandleProps}
+                    fontSizeMultiplier={fontSizeMultiplier}
+                    isSortMode={isSortMode}
+                  />
+                </div>
               )}
             </Draggable>
           ))}
