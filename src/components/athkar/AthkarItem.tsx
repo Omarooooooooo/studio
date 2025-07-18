@@ -1,10 +1,9 @@
 
 "use client";
 
-import type { StoredAthkar } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, GripVertical, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, ChevronUp, GripVertical } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
@@ -53,16 +52,10 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
 
     const [showVirtue, setShowVirtue] = useState(false);
     
-    const sessionCompletedAthkarIdsRef = useRef(new Set<string>()); // Specific to AthkarItem for auto-count
-    
     useEffect(() => {
       if (isAutoCounting && !athkar.isSessionHidden && isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
         autoCountIntervalRef.current = setInterval(() => {
-          if (!sessionCompletedAthkarIdsRef.current.has(athkar.id)) { 
-              stableOnIncrementCountRef.current(athkar.id);
-          } else {
-              setIsAutoCounting(false);
-          }
+          stableOnIncrementCountRef.current(athkar.id);
         }, athkar.readingTimeSeconds * 1000);
       } else {
         if (autoCountIntervalRef.current) {
@@ -80,9 +73,10 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
       };
     }, [isAutoCounting, athkar.isSessionHidden, isCountable, athkar.id, athkar.readingTimeSeconds]);
 
+    const stopPropagationHandler = (e: React.MouseEvent<HTMLElement>) => e.stopPropagation();
 
     const handleMainAction = useCallback((e: React.MouseEvent<HTMLElement>) => {
-      e.stopPropagation();
+      stopPropagationHandler(e);
       if (isCountable) {
         if (!athkar.isSessionHidden) {
           onIncrementCount(athkar.id);
@@ -94,7 +88,7 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
 
 
     const handleToggleAutoCount = useCallback((e: React.MouseEvent<HTMLElement>) => {
-      e.stopPropagation();
+      stopPropagationHandler(e);
       if (isCountable && athkar.readingTimeSeconds && athkar.readingTimeSeconds > 0) {
         if (isAutoCounting) {
           setIsAutoCounting(false);
@@ -103,17 +97,7 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
         }
       }
     }, [isCountable, athkar.readingTimeSeconds, isAutoCounting, athkar.isSessionHidden]);
-
-     useEffect(() => {
-      if(athkar.isSessionHidden && !sessionCompletedAthkarIdsRef.current.has(athkar.id)){
-          // sessionCompletedAthkarIdsRef.current.add(athkar.id);
-      }
-      if(!athkar.isSessionHidden && sessionCompletedAthkarIdsRef.current.has(athkar.id)){
-          sessionCompletedAthkarIdsRef.current.delete(athkar.id);
-      }
-    }, [athkar.isSessionHidden, athkar.id]);
-
-
+    
     const circumference = 2 * Math.PI * 15.9155;
     const targetCountForProgress = athkar.count || 1;
     const progressPercentage = (currentSessionProgress / targetCountForProgress);
@@ -121,25 +105,21 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
     const baseFontSizeRem = 1.5;
     const baseLineHeight = 1.625;
 
-    const stopPropagationHandler = (e: React.MouseEvent<HTMLElement>) => e.stopPropagation();
-
-
     if (isSortMode) {
       return (
         <div
           ref={ref}
           {...draggableProps}
           className={cn(
-            "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
-            athkar.isSessionHidden ? 'opacity-60' : '', // Opacity if hidden in sort mode
-            "cursor-grab"
+            "w-full flex items-center p-2 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200 ease-out cursor-grab",
+            athkar.isSessionHidden ? 'opacity-60' : '',
           )}
         >
           <div
             {...dragHandleProps}
             className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
             aria-label="اسحب لترتيب الذكر"
-            onClick={stopPropagationHandler} // Prevent drag start when clicking handle itself if it's part of main draggable area
+            onClick={stopPropagationHandler}
           >
             <GripVertical size={20} />
           </div>
@@ -159,30 +139,18 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
       );
     }
 
-    // Normal mode: AthkarList now filters out hidden items, so this always renders a visible card.
     return (
       <div 
         ref={ref}
         {...draggableProps}
-        className={cn(
-          "transition-all duration-300 ease-in-out overflow-hidden",
-          "max-h-[1000px] opacity-100", // Styles for showing (no longer handles hiding)
-          "cursor-grab"
-        )}
+        className="cursor-grab"
       >
-        <Card className={cn(
-            "w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out",
-            'bg-card' 
-          )}
-        >
+        <Card className="w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out bg-card">
           <CardHeader className="pb-3 pt-3">
             <div className="flex justify-between items-start">
               <div 
                 {...dragHandleProps}
-                className={cn(
-                  "p-1.5 text-muted-foreground hover:text-foreground",
-                  "cursor-grab" 
-                )}
+                className="p-1.5 text-muted-foreground hover:text-foreground cursor-grab"
                 aria-label="اسحب لترتيب الذكر"
                 onClick={stopPropagationHandler}
               >
@@ -249,10 +217,10 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
 
                   <button
                     onClick={handleMainAction}
-                    disabled={athkar.isSessionHidden || isAutoCounting} // isSessionHidden check for disabling, not for display
+                    disabled={athkar.isSessionHidden || isAutoCounting} 
                     aria-label={athkar.isSessionHidden ? "مكتمل لهذه الجلسة" : "زيادة العد"}
                     className={`relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                                ${athkar.isSessionHidden || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 cursor-pointer'}`}
+                                ${athkar.isSessionHidden || isAutoCounting ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80'}`}
                   >
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 36 36">
                       <circle

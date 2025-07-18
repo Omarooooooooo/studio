@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { AthkarGroup, StoredAthkar } from '@/types'; // Renamed StoredAthkar to avoid conflict if Athkar is used differently
+import type { AthkarGroup, StoredAthkar } from '@/types'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,13 +34,13 @@ import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data'; // Key for the separate log
+const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
 const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
 
 
-export interface AthkarInSession extends StoredAthkar { // StoredAthkar is the type from localStorage
+export interface AthkarInSession extends StoredAthkar { 
   sessionProgress: number;
   isSessionHidden: boolean;
 }
@@ -88,7 +88,6 @@ export default function GroupPage() {
     if (isClient) {
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
       const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      // Theme is applied by inline script in layout.tsx, this just syncs state
       setTheme(initialTheme);
 
       const storedSound = localStorage.getItem(SOUND_STORAGE_KEY);
@@ -131,7 +130,6 @@ export default function GroupPage() {
       try {
         return JSON.parse(storedGroupsString) as AthkarGroup[];
       } catch (e) {
-        console.error("Failed to parse groups from localStorage:", e);
       }
     }
     return [];
@@ -142,12 +140,10 @@ export default function GroupPage() {
     try {
       localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
     } catch (e) {
-      console.error("Failed to save groups to localStorage:", e);
     }
   }, [isClient]);
   
   const saveCurrentGroupStructure = useCallback((updatedGroupData: AthkarGroup) => {
-    if (!isClient) return;
     const storedGroups = getStoredGroups();
     const groupIndex = storedGroups.findIndex(g => g.id === updatedGroupData.id);
     if (groupIndex !== -1) {
@@ -156,7 +152,7 @@ export default function GroupPage() {
         storedGroups.push(updatedGroupData);
     }
     saveStoredGroupsToLocalStorage(storedGroups);
-  }, [isClient, getStoredGroups, saveStoredGroupsToLocalStorage]);
+  }, [getStoredGroups, saveStoredGroupsToLocalStorage]);
 
 
   const loadGroup = useCallback(() => {
@@ -168,7 +164,7 @@ export default function GroupPage() {
       if (currentStoredGroup) {
         const validAthkarArray = Array.isArray(currentStoredGroup.athkar) ? currentStoredGroup.athkar : [];
         const athkarInSession: AthkarInSession[] = validAthkarArray.map(thikr => ({
-          ...thikr, // This is StoredAthkar
+          ...thikr,
           sessionProgress: 0,
           isSessionHidden: false,
         }));
@@ -203,7 +199,6 @@ export default function GroupPage() {
         try {
           logData = JSON.parse(logString);
         } catch (parseError) {
-          console.error("Failed to parse Athkar log data from localStorage:", parseError);
           logData = {}; 
         }
       }
@@ -212,7 +207,6 @@ export default function GroupPage() {
 
       localStorage.setItem(ATHKAR_LOG_STORAGE_KEY, JSON.stringify(logData));
     } catch (e) {
-      console.error("Failed to update separate Athkar log in localStorage:", e);
     }
   }, [isClient]);
 
@@ -232,7 +226,6 @@ export default function GroupPage() {
       virtue: newAthkarVirtue.trim() || undefined,
       count: newAthkarCount.trim() ? count : undefined,
       readingTimeSeconds: newAthkarReadingTime.trim() ? readingTime : undefined,
-      // completedCount is not part of StoredAthkar anymore, it's in the separate log
     };
 
     const newAthkarInSession: AthkarInSession = {
@@ -440,7 +433,7 @@ export default function GroupPage() {
   }, []);
 
   const onDragEndAthkar = useCallback((result: DropResult) => {
-    if (!result.destination || !group) return;
+    if (!result.destination) return;
     setGroup(prevGroup => {
       if (!prevGroup || !result.destination) return prevGroup;
       if (result.destination.index === result.source.index) return prevGroup;
@@ -457,7 +450,7 @@ export default function GroupPage() {
       saveCurrentGroupStructure(groupToSave);
       return { ...prevGroup, athkar: reorderedAthkarForUI };
     });
-  }, [group, saveCurrentGroupStructure]);
+  }, [saveCurrentGroupStructure]);
 
   const handleIncrementFontSize = useCallback(() => {
     setFontSizeMultiplier(prev => Math.min(prev + 0.1, 2));
@@ -566,7 +559,7 @@ export default function GroupPage() {
           </div>
         </header>
 
-        <div className="w-full max-w-4xl text-center my-3 sm:my-4 mb-4"> 
+        <div className="w-full max-w-4xl text-center my-3 sm:my-4"> 
           <h1 className="text-2xl sm:text-3xl font-semibold text-primary truncate px-2" title={group.name}>
             {group.name}
           </h1>

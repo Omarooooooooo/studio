@@ -100,12 +100,10 @@ export default function HomePage() {
 
   const [hydrated, setHydrated] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light'); 
-  // const { toast } = useToast(); // Toasts removed
-
+  
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
     const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    // Theme is applied by inline script in layout.tsx, this just syncs state
     setTheme(initialTheme); 
     
     const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -118,7 +116,6 @@ export default function HomePage() {
         }));
         setGroups(normalizedGroups);
       } catch (e) {
-        console.error("Failed to parse stored groups:", e);
         setGroups([]);
       }
     }
@@ -130,7 +127,7 @@ export default function HomePage() {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
       } catch (e) {
-        console.error("Failed to save groups to localStorage:", e);
+        
       }
     }
   }, [groups, hydrated]);
