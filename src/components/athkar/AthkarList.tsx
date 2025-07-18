@@ -61,7 +61,7 @@ export const AthkarList = memo(function AthkarList({
         <div 
           {...provided.droppableProps}
           ref={provided.innerRef}
-          className={cn("w-full", isSortMode ? 'space-y-2' : 'space-y-4')}
+          className="w-full"
         >
           {athkarList.map((thikr, index) => {
             if (!isSortMode && thikr.isSessionHidden) {
@@ -70,23 +70,19 @@ export const AthkarList = memo(function AthkarList({
             return (
               <Draggable key={thikr.id} draggableId={thikr.id} index={index}>
                 {(providedDraggable) => (
-                  <div
+                  <AthkarItem
                     ref={providedDraggable.innerRef}
-                    {...providedDraggable.draggableProps}
-                    {...providedDraggable.dragHandleProps}
-                  >
-                    <AthkarItem
-                      athkar={thikr}
-                      onToggleComplete={onToggleComplete}
-                      onIncrementCount={onIncrementCount}
-                      onDecrementCount={onDecrementCount}
-                      onEditAthkar={() => onEditAthkar(thikr)}
-                      onDeleteAthkar={() => onDeleteAthkar(thikr)}
-                      fontSizeMultiplier={fontSizeMultiplier}
-                      isSortMode={isSortMode}
-                      isDragging={providedDraggable.isDragging}
-                    />
-                  </div>
+                    provided={providedDraggable}
+                    athkar={thikr}
+                    onToggleComplete={onToggleComplete}
+                    onIncrementCount={onIncrementCount}
+                    onDecrementCount={onDecrementCount}
+                    onEditAthkar={() => onEditAthkar(thikr)}
+                    onDeleteAthkar={() => onDeleteAthkar(thikr)}
+                    fontSizeMultiplier={fontSizeMultiplier}
+                    isSortMode={isSortMode}
+                    className={cn(isSortMode ? 'mb-2' : 'mb-4')}
+                  />
                 )}
               </Draggable>
             );
