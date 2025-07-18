@@ -3,9 +3,9 @@
 
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, ChevronUp, GripVertical } from 'lucide-react';
+import { CheckCircle2, Circle, MinusCircle, Info, Edit3, Trash2, Play, Pause, ChevronUp } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { DraggableProvidedDraggableProps, DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
+import type { DraggableProvidedDraggableProps } from '@hello-pangea/dnd';
 import { cn } from '@/lib/utils';
 import type { AthkarInSession } from '@/app/group/[groupId]/page';
 
@@ -20,10 +20,12 @@ export interface AthkarItemProps {
   fontSizeMultiplier: number;
   isSortMode: boolean;
   draggableProps: DraggableProvidedDraggableProps;
-  dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
 }
 
-const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
+const AthkarItemComponent = React.memo(React.forwardRef<
+  HTMLDivElement,
+  AthkarItemProps
+>(
   (
     {
       athkar,
@@ -35,7 +37,6 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
       fontSizeMultiplier,
       isSortMode,
       draggableProps,
-      dragHandleProps,
     },
     ref
   ) => {
@@ -115,14 +116,6 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
             athkar.isSessionHidden ? 'opacity-60' : '',
           )}
         >
-          <div
-            {...dragHandleProps}
-            className="p-2 cursor-grab text-muted-foreground hover:text-foreground"
-            aria-label="اسحب لترتيب الذكر"
-            onClick={stopPropagationHandler}
-          >
-            <GripVertical size={20} />
-          </div>
           <p
             className="flex-grow text-right font-arabic text-foreground truncate px-2"
             lang="ar"
@@ -147,16 +140,7 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
       >
         <Card className="w-full shadow-sm hover:shadow-md transition-shadow duration-200 ease-out bg-card">
           <CardHeader className="pb-3 pt-3">
-            <div className="flex justify-between items-start">
-              <div 
-                {...dragHandleProps}
-                className="p-2 text-muted-foreground hover:text-foreground cursor-grab"
-                aria-label="اسحب لترتيب الذكر"
-                onClick={stopPropagationHandler}
-              >
-                <GripVertical size={20} />
-              </div>
-
+            <div className="flex justify-end items-start">
               <div className="flex items-center gap-1">
                 {athkar.virtue && (
                   <Button variant="ghost" size="icon" onClick={(e) => { stopPropagationHandler(e); setShowVirtue(!showVirtue);}} className="text-muted-foreground hover:text-accent-foreground h-8 w-8">
@@ -297,7 +281,7 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
       </div>
     );
   }
-);
+));
 AthkarItemComponent.displayName = 'AthkarItemComponent';
 
-export const AthkarItem = React.memo(AthkarItemComponent);
+export const AthkarItem = AthkarItemComponent;

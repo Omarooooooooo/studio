@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit2, Trash2, Loader2, GripVertical, Sun, Moon, History } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, Sun, Moon, History } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided } from '@hello-pangea/dnd';
 
@@ -43,21 +43,17 @@ interface GroupCardItemProps {
 }
 
 const GroupCardItem = memo(function GroupCardItem({ group, provided, onEdit, onDelete }: GroupCardItemProps) {
+  const stopPropagationHandler = (e: React.MouseEvent<HTMLElement>) => e.stopPropagation();
+
   return (
     <div
       ref={provided.innerRef}
       {...provided.draggableProps}
-      className="mb-4"
+      {...provided.dragHandleProps}
+      className="mb-4 cursor-grab"
     >
       <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 ease-out">
         <CardContent className="p-4 flex items-center justify-between space-x-2 rtl:space-x-reverse">
-          <div
-            {...provided.dragHandleProps}
-            className="p-2 cursor-grab text-muted-foreground hover:text-foreground"
-            aria-label={`اسحب لترتيب مجموعة ${group.name}`}
-          >
-            <GripVertical size={20} />
-          </div>
           <Link href={`/group/${group.id}`} passHref className="flex-grow mx-2">
             <span className="text-lg font-semibold text-primary hover:underline cursor-pointer truncate" title={group.name}>
               {group.name}
@@ -65,14 +61,14 @@ const GroupCardItem = memo(function GroupCardItem({ group, provided, onEdit, onD
             <p className="text-xs text-muted-foreground">{group.athkar?.length || 0} أذكار</p>
           </Link>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" onClick={() => onEdit(group)} aria-label={`تعديل اسم مجموعة ${group.name}`}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" onClick={(e) => { stopPropagationHandler(e); onEdit(group);}} aria-label={`تعديل اسم مجموعة ${group.name}`}>
               <Edit2 className="h-5 w-5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-red-600 hover:text-red-700"
-              onClick={() => onDelete(group)}
+              onClick={(e) => { stopPropagationHandler(e); onDelete(group);}}
               aria-label={`حذف مجموعة ${group.name}`}
             >
               <Trash2 className="h-5 w-5" />
@@ -127,7 +123,6 @@ export default function HomePage() {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
       } catch (e) {
-        
       }
     }
   }, [groups, hydrated]);
