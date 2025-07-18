@@ -5,6 +5,7 @@ import { AthkarItem } from './AthkarItem';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import type { AthkarInSession } from '@/app/group/[groupId]/page'; 
 import { cn } from '@/lib/utils';
+import { memo } from 'react';
 
 
 interface AthkarListProps {
@@ -18,7 +19,7 @@ interface AthkarListProps {
   isSortMode: boolean;
 }
 
-export function AthkarList({ 
+export const AthkarList = memo(function AthkarList({ 
   athkarList, 
   onToggleComplete, 
   onIncrementCount, 
@@ -54,27 +55,25 @@ export function AthkarList({
     );
   }
 
-
   return (
     <Droppable droppableId="athkarDroppable">
       {(provided) => (
         <div 
           {...provided.droppableProps}
           ref={provided.innerRef}
-          className="w-full"
+          className={cn("w-full", isSortMode ? 'space-y-2' : 'space-y-4')}
         >
           {athkarList.map((thikr, index) => {
             if (!isSortMode && thikr.isSessionHidden) {
               return null;
             }
             return (
-              <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={!isSortMode && thikr.isSessionHidden}>
+              <Draggable key={thikr.id} draggableId={thikr.id} index={index}>
                 {(providedDraggable) => (
                   <div
                     ref={providedDraggable.innerRef}
                     {...providedDraggable.draggableProps}
                     {...providedDraggable.dragHandleProps}
-                    className={cn(isSortMode ? 'mb-2' : 'mb-4')}
                   >
                     <AthkarItem
                       athkar={thikr}
@@ -85,6 +84,7 @@ export function AthkarList({
                       onDeleteAthkar={() => onDeleteAthkar(thikr)}
                       fontSizeMultiplier={fontSizeMultiplier}
                       isSortMode={isSortMode}
+                      isDragging={providedDraggable.isDragging}
                     />
                   </div>
                 )}
@@ -96,4 +96,5 @@ export function AthkarList({
       )}
     </Droppable>
   );
-}
+});
+AthkarList.displayName = 'AthkarList';
