@@ -117,7 +117,7 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
         >
           <div
             {...dragHandleProps}
-            className="p-1.5 cursor-grab text-muted-foreground hover:text-foreground"
+            className="p-2 cursor-grab text-muted-foreground hover:text-foreground"
             aria-label="اسحب لترتيب الذكر"
             onClick={stopPropagationHandler}
           >
@@ -150,7 +150,7 @@ const AthkarItemComponent = React.forwardRef<HTMLDivElement, AthkarItemProps>(
             <div className="flex justify-between items-start">
               <div 
                 {...dragHandleProps}
-                className="p-1.5 text-muted-foreground hover:text-foreground cursor-grab"
+                className="p-2 text-muted-foreground hover:text-foreground cursor-grab"
                 aria-label="اسحب لترتيب الذكر"
                 onClick={stopPropagationHandler}
               >
