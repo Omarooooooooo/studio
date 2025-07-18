@@ -42,45 +42,51 @@ export function AthkarList({
     );
   }
 
-  if (!isSortMode && visibleAthkarInNormalMode.length === 0) {
+  if (!isSortMode && visibleAthkarInNormalMode.length === 0 && athkarList.length > 0) {
     return (
       <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-card">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-12 w-12 text-muted-foreground mb-4"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-        <h2 className="text-xl font-semibold text-foreground mb-2">تم إكمال جميع الأذكار لهذه الجلسة</h2>
+        <h2 className="text-xl font-semibold text-foreground mb-2">تم إكمال جميع الأذكار لهذه الجلسة!</h2>
         <p className="text-muted-foreground">
-          قم بإعادة تعيين الجلسة لرؤية الأذكار مرة أخرى، أو يمكنك إضافة أذكار جديدة للمجموعة.
+          رائع! يمكنك إعادة تعيين الجلسة، أو إضافة المزيد من الأذكار للمجموعة.
         </p>
       </div>
     );
   }
 
+
   return (
-    <Droppable droppableId="athkarDroppable" isDropDisabled={false}>
+    <Droppable droppableId="athkarDroppable">
       {(provided) => (
         <div 
           {...provided.droppableProps}
           ref={provided.innerRef}
-          className={cn("w-full", isSortMode ? 'space-y-2' : 'space-y-4')}
+          className="w-full"
         >
           {athkarList.map((thikr, index) => {
             if (!isSortMode && thikr.isSessionHidden) {
               return null;
             }
             return (
-              <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={false}>
+              <Draggable key={thikr.id} draggableId={thikr.id} index={index} isDragDisabled={!isSortMode && thikr.isSessionHidden}>
                 {(providedDraggable) => (
-                  <AthkarItem
+                  <div
                     ref={providedDraggable.innerRef}
-                    athkar={thikr}
-                    onToggleComplete={onToggleComplete}
-                    onIncrementCount={onIncrementCount}
-                    onDecrementCount={onDecrementCount}
-                    onEditAthkar={() => onEditAthkar(thikr)}
-                    onDeleteAthkar={() => onDeleteAthkar(thikr)}
-                    fontSizeMultiplier={fontSizeMultiplier}
-                    isSortMode={isSortMode}
-                    draggableProps={{...providedDraggable.draggableProps, ...providedDraggable.dragHandleProps}}
-                  />
+                    {...providedDraggable.draggableProps}
+                    {...providedDraggable.dragHandleProps}
+                    className={cn(isSortMode ? 'mb-2' : 'mb-4')}
+                  >
+                    <AthkarItem
+                      athkar={thikr}
+                      onToggleComplete={onToggleComplete}
+                      onIncrementCount={onIncrementCount}
+                      onDecrementCount={onDecrementCount}
+                      onEditAthkar={() => onEditAthkar(thikr)}
+                      onDeleteAthkar={() => onDeleteAthkar(thikr)}
+                      fontSizeMultiplier={fontSizeMultiplier}
+                      isSortMode={isSortMode}
+                    />
+                  </div>
                 )}
               </Draggable>
             );
