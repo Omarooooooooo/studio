@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 export const metadata: Metadata = {
   title: 'Athkari - اذكاري',
   description: 'Your daily companion for Athkar, with personalized recommendations.',
+  manifest: '/manifest.json',
 };
 
 const THEME_STORAGE_KEY = 'athkari-theme'; // Ensure this matches the key used in theme toggles
@@ -40,7 +41,8 @@ export default function RootLayout({
       suppressHydrationWarning={true}
     >
       <head>
-        {/* You can add other head elements here if needed */}
+        <meta name="theme-color" content="#A7D1AB" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#4D8554" media="(prefers-color-scheme: dark)" />
       </head>
       <body className="antialiased bg-background text-foreground">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
