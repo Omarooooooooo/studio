@@ -1,0 +1,53 @@
+# codemagic.yaml
+#
+# هذا الملف هو مثال لكيفية إعداد Codemagic لبناء تطبيق APK
+# من مشروع Next.js بعد إضافة أداة التغليف Capacitor.
+#
+# لاستخدام هذا الملف، يجب أولاً إعداد Capacitor في مشروعك:
+# 1. npm install @capacitor/core @capacitor/cli @capacitor/android
+# 2. npx cap init [appName] [appId] --web-dir="out"
+# 3. npx cap add android
+# 4. تأكد من أن next.config.js يحتوي على 'output: "export"' لتصدير التطبيق كملفات ثابتة.
+#
+# لمزيد من المعلومات: https://capacitorjs.com/docs/getting-started
+
+workflows:
+  android-build:
+    name: Build Android APK
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      android_sdk_version: "34"
+      node: 20.10.0 # أو إصدار متوافق
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+
+      - name: Build Next.js static site
+        script: |
+          # تأكد من أن next.config.js تم إعداده لتصدير الموقع الثابت
+          npm run build
+
+      - name: Install Capacitor CLI
+        script: |
+          npm install @capacitor/cli
+
+      - name: Sync web build with Capacitor Android platform
+        script: |
+          npx cap sync android
+
+      - name: Build Android APK
+        script: |
+          cd android
+          ./gradlew assembleDebug # أو assembleRelease
+
+    artifacts:
+      - android/app/build/outputs/apk/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - your.email@example.com # ضع بريدك الإلكتروني هنا
+        notify:
+          success: true
+          failure: true
