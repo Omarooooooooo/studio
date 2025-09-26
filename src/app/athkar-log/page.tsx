@@ -119,10 +119,11 @@ export default function AthkarLogPage() {
         </h1>
         {logEntries.length > 0 ? (
             <Button
-                variant="destructive"
+                variant="outline"
                 size="icon"
                 onClick={() => setIsDeleteAllDialogOpen(true)}
                 aria-label="حذف كل التقدم من السجل"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
                 <Trash2 className="h-5 w-5" />
             </Button>
@@ -215,3 +216,5 @@ export default function AthkarLogPage() {
     </div>
   );
 }
+
+    
