@@ -488,6 +488,15 @@ export default function GroupPage() {
                 >
                   {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
+                 <Button
+                    onClick={handleResetAllAthkar}
+                    variant="outline"
+                    size="icon"
+                    className="hover:bg-destructive hover:text-destructive-foreground"
+                    aria-label="إعادة تعيين الأذكار لهذه الجلسة (لا يؤثر على السجل الدائم)"
+                    >
+                    <RefreshCcw className="h-4 w-4" />
+                </Button>
               </>
             )}
           </div>
@@ -507,15 +516,6 @@ export default function GroupPage() {
               className={isSortMode ? "bg-accent text-accent-foreground" : ""}
             >
               <ListFilter className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={handleResetAllAthkar}
-              variant="outline"
-              size="icon"
-              className="hover:bg-destructive hover:text-destructive-foreground"
-              aria-label="إعادة تعيين الأذكار لهذه الجلسة (لا يؤثر على السجل الدائم)"
-            >
-              <RefreshCcw className="h-4 w-4" />
             </Button>
           </div>
         </header>
