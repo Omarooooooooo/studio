@@ -28,18 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-// @ts-ignore
-import clickSound from '/public/sounds/click.mp3';
-
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
 const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 const THEME_STORAGE_KEY = 'athkari-theme';
-const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
-
 
 export interface AthkarInSession extends StoredAthkar { 
   sessionProgress: number;
@@ -61,7 +56,6 @@ export default function GroupPage() {
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   const [isAddAthkarDialogOpen, setIsAddAthkarDialogOpen] = useState(false);
   const [newAthkarArabic, setNewAthkarArabic] = useState('');
@@ -79,35 +73,16 @@ export default function GroupPage() {
   const [deletingAthkar, setDeletingAthkar] = useState<AthkarInSession | null>(null);
 
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isAudioInitialized = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
   
-  const playSound = useCallback(() => {
-    if (isSoundEnabled && isClient) {
-      if (!isAudioInitialized.current) {
-        audioRef.current = new Audio(clickSound);
-        isAudioInitialized.current = true;
-      }
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(e => console.error("Error playing sound:", e));
-      }
-    }
-  }, [isSoundEnabled, isClient]);
-
-
   useEffect(() => {
     if (isClient) {
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
       const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       setTheme(initialTheme);
-
-      const storedSound = localStorage.getItem(SOUND_STORAGE_KEY);
-      setIsSoundEnabled(storedSound ? JSON.parse(storedSound) : true);
     }
   }, [isClient]);
 
@@ -123,13 +98,6 @@ export default function GroupPage() {
       return newTheme;
     });
   }, []);
-
-
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem(SOUND_STORAGE_KEY, JSON.stringify(isSoundEnabled));
-    }
-  }, [isSoundEnabled, isClient]);
 
   const getStoredGroups = useCallback((): AthkarGroup[] => {
     if (!isClient) return [];
@@ -336,7 +304,6 @@ export default function GroupPage() {
 
 
  const handleIncrementCount = useCallback((athkarId: string) => {
-    playSound();
     setGroup(prevGroup => {
         if (!prevGroup) return null;
 
@@ -373,11 +340,10 @@ export default function GroupPage() {
         
         return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, [updateSeparateAthkarLog, playSound]);
+  }, [updateSeparateAthkarLog]);
 
 
   const handleDecrementCount = useCallback((athkarId: string) => {
-    playSound();
     setGroup(prevGroup => {
       if (!prevGroup) return null;
       const updatedAthkarList = prevGroup.athkar.map(a => {
@@ -398,10 +364,9 @@ export default function GroupPage() {
       });
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, [playSound]);
+  }, []);
 
   const handleToggleComplete = useCallback((athkarId: string) => {
-    playSound();
     setGroup(prevGroup => {
       if (!prevGroup) return null;
 
@@ -436,7 +401,7 @@ export default function GroupPage() {
 
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, [updateSeparateAthkarLog, playSound]);
+  }, [updateSeparateAthkarLog]);
 
   const handleResetAllAthkar = useCallback(() => {
     setGroup(prevGroup => {
@@ -483,10 +448,6 @@ export default function GroupPage() {
     setIsSortMode(prev => !prev);
   }, []);
 
-  const toggleSound = useCallback(() => {
-    setIsSoundEnabled(prev => !prev);
-  }, []);
-
 
   if (!isClient || isLoading) {
     return (
@@ -526,14 +487,6 @@ export default function GroupPage() {
                   aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
                 >
                   {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                </Button>
-                <Button
-                  onClick={toggleSound}
-                  variant="outline"
-                  size="icon"
-                  aria-label={isSoundEnabled ? "تعطيل الصوت" : "تفعيل الصوت"}
-                >
-                  {isSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                 </Button>
               </>
             )}
@@ -756,5 +709,3 @@ export default function GroupPage() {
     </div>
   );
 }
-
-    
