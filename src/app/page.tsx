@@ -331,7 +331,7 @@ export default function HomePage() {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button
-            className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto h-16 w-16 rounded-full shadow-lg z-50 text-2xl bg-accent hover:bg-accent/90 text-accent-foreground"
+            className="fixed bottom-8 right-8 z-50 h-16 w-16 rounded-full bg-accent text-2xl text-accent-foreground shadow-lg hover:bg-accent/90"
             size="icon"
             aria-label="إضافة مجموعة جديدة"
           >

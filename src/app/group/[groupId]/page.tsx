@@ -630,7 +630,7 @@ export default function GroupPage() {
         )}
       </div>
 
-      <div className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto z-50">
+      <div className="fixed bottom-8 right-8 z-50">
         <Dialog open={isAddAthkarDialogOpen} onOpenChange={setIsAddAthkarDialogOpen}>
             <DialogTrigger asChild>
             <Button
