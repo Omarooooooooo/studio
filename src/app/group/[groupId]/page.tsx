@@ -28,9 +28,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
+import { findAthkar, type FoundAthkar } from '@/ai/flows/find-athkar-flow';
+// @ts-ignore
+import clickSound from '/public/sounds/click.mp3';
 
 
 const GROUPS_STORAGE_KEY = 'athkari_groups';
@@ -76,11 +79,28 @@ export default function GroupPage() {
 
   const [deletingAthkar, setDeletingAthkar] = useState<AthkarInSession | null>(null);
 
+  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+  const [aiQuery, setAiQuery] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiResults, setAiResults] = useState<FoundAthkar[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setIsClient(true);
+    if (typeof Audio !== 'undefined') {
+        audioRef.current = new Audio(clickSound);
+    }
   }, []);
+
+  const playSound = useCallback(() => {
+    if (isSoundEnabled && audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+    }
+  }, [isSoundEnabled]);
 
   useEffect(() => {
     if (isClient) {
@@ -200,8 +220,36 @@ export default function GroupPage() {
     }
   }, [isClient]);
 
+  const handleAddAthkar = useCallback((athkarData: Omit<StoredAthkar, 'id'>) => {
+    if (!athkarData.arabic.trim() || !group) return;
 
-  const handleAddAthkar = useCallback(() => {
+    const newStoredAthkarItem: StoredAthkar = {
+        id: Date.now().toString() + Math.random().toString(), // More unique ID
+        ...athkarData,
+    };
+    
+    const newAthkarInSession: AthkarInSession = {
+        ...newStoredAthkarItem,
+        sessionProgress: 0,
+        isSessionHidden: false,
+    };
+
+    setGroup(prevGroup => {
+        if (!prevGroup) return null;
+        const updatedAthkarListForUI = [...prevGroup.athkar, newAthkarInSession];
+        
+        const groupToSave: AthkarGroup = {
+            id: prevGroup.id,
+            name: prevGroup.name,
+            athkar: updatedAthkarListForUI.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
+        };
+        saveCurrentGroupStructure(groupToSave);
+        return { ...prevGroup, athkar: updatedAthkarListForUI };
+    });
+  }, [group, saveCurrentGroupStructure]);
+
+
+  const handleAddNewAthkarDialog = useCallback(() => {
     if (!newAthkarArabic.trim() || !group) return;
 
     const count = parseInt(newAthkarCount, 10);
@@ -209,32 +257,12 @@ export default function GroupPage() {
 
     if (newAthkarCount.trim() && (isNaN(count) || count < 0)) return;
     if (newAthkarReadingTime.trim() && (isNaN(readingTime) || readingTime < 0)) return;
-
-    const newStoredAthkarItem: StoredAthkar = {
-      id: Date.now().toString(),
-      arabic: newAthkarArabic.trim(),
-      virtue: newAthkarVirtue.trim() || undefined,
-      count: newAthkarCount.trim() ? count : undefined,
-      readingTimeSeconds: newAthkarReadingTime.trim() ? readingTime : undefined,
-    };
-
-    const newAthkarInSession: AthkarInSession = {
-      ...newStoredAthkarItem,
-      sessionProgress: 0,
-      isSessionHidden: false,
-    };
-
-    setGroup(prevGroup => {
-      if (!prevGroup) return null;
-      const updatedAthkarListForUI = [...prevGroup.athkar, newAthkarInSession];
-      
-      const groupToSave: AthkarGroup = {
-        id: prevGroup.id,
-        name: prevGroup.name,
-        athkar: updatedAthkarListForUI.map(({ sessionProgress, isSessionHidden, ...storedThikr }) => storedThikr)
-      };
-      saveCurrentGroupStructure(groupToSave);
-      return { ...prevGroup, athkar: updatedAthkarListForUI };
+    
+    handleAddAthkar({
+        arabic: newAthkarArabic.trim(),
+        virtue: newAthkarVirtue.trim() || undefined,
+        count: newAthkarCount.trim() ? count : undefined,
+        readingTimeSeconds: newAthkarReadingTime.trim() ? readingTime : undefined,
     });
 
     setNewAthkarArabic('');
@@ -242,7 +270,19 @@ export default function GroupPage() {
     setNewAthkarCount('');
     setNewAthkarReadingTime('');
     setIsAddAthkarDialogOpen(false);
-  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, group, saveCurrentGroupStructure]);
+  }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, group, handleAddAthkar]);
+
+
+  const handleAddAiAthkar = useCallback((athkar: FoundAthkar) => {
+        handleAddAthkar({
+            arabic: athkar.arabic,
+            virtue: athkar.virtue ?? undefined,
+            count: athkar.count ?? undefined,
+            readingTimeSeconds: athkar.readingTimeSeconds ?? undefined
+        });
+        // Optionally remove the added athkar from AI results list
+        setAiResults(prev => prev.filter(r => r.arabic !== athkar.arabic));
+    }, [handleAddAthkar]);
 
   const openEditAthkarDialog = useCallback((athkarToEdit: AthkarInSession) => {
     setEditingAthkar(athkarToEdit);
@@ -310,6 +350,7 @@ export default function GroupPage() {
 
 
  const handleIncrementCount = useCallback((athkarId: string) => {
+    playSound();
     setGroup(prevGroup => {
         if (!prevGroup) return null;
 
@@ -346,10 +387,11 @@ export default function GroupPage() {
         
         return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, [updateSeparateAthkarLog]);
+  }, [updateSeparateAthkarLog, playSound]);
 
 
   const handleDecrementCount = useCallback((athkarId: string) => {
+    playSound();
     setGroup(prevGroup => {
       if (!prevGroup) return null;
       const updatedAthkarList = prevGroup.athkar.map(a => {
@@ -370,9 +412,10 @@ export default function GroupPage() {
       });
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, []);
+  }, [playSound]);
 
   const handleToggleComplete = useCallback((athkarId: string) => {
+    playSound();
     setGroup(prevGroup => {
       if (!prevGroup) return null;
 
@@ -407,7 +450,7 @@ export default function GroupPage() {
 
       return { ...prevGroup, athkar: updatedAthkarList };
     });
-  }, [updateSeparateAthkarLog]);
+  }, [updateSeparateAthkarLog, playSound]);
 
   const handleResetAllAthkar = useCallback(() => {
     setGroup(prevGroup => {
@@ -457,6 +500,26 @@ export default function GroupPage() {
   const toggleSound = useCallback(() => {
     setIsSoundEnabled(prev => !prev);
   }, []);
+
+  const handleAiSearch = useCallback(async () => {
+    if (!aiQuery.trim()) return;
+    setIsAiLoading(true);
+    setAiResults([]);
+    setAiError(null);
+    try {
+      const result = await findAthkar(aiQuery);
+      if (result && result.athkar.length > 0) {
+        setAiResults(result.athkar);
+      } else {
+        setAiError("لم يتم العثور على أذكار تطابق بحثك.");
+      }
+    } catch (error) {
+      console.error("Error fetching AI suggestions:", error);
+      setAiError("حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  }, [aiQuery]);
 
   if (!isClient || isLoading) {
     return (
@@ -594,8 +657,7 @@ export default function GroupPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="edit-athkar-count">عدد التكرار (اختياري)</Label>
-                    <Input
+                    <Label htmlFor="edit-athkar-count">عدد التكرار (اختياري)</Label>                    <Input
                       id="edit-athkar-count"
                       type="number"
                       value={editedAthkarCount}
@@ -647,79 +709,148 @@ export default function GroupPage() {
           </AlertDialog>
         )}
       </div>
-      <Dialog open={isAddAthkarDialogOpen} onOpenChange={setIsAddAthkarDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto h-16 w-16 rounded-full shadow-lg z-50 text-2xl bg-accent hover:bg-accent/90 text-accent-foreground"
-            size="icon"
-            aria-label="إضافة ذكر جديد"
-          >
-            <Plus size={32} />
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>إضافة ذكر جديد إلى "{group?.name || 'المجموعة'}"</DialogTitle>
-            <DialogDescription>
-              أدخل تفاصيل الذكر الجديد ليتم إضافته إلى هذه المجموعة.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="add-athkar-arabic">نص الذكر (بالعربية)</Label>
-              <Textarea
-                id="add-athkar-arabic"
-                value={newAthkarArabic}
-                onChange={(e) => setNewAthkarArabic(e.target.value)}
-                placeholder="سبحان الله وبحمده..."
-                lang="ar"
-                rows={3}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="add-athkar-virtue">فضل الذكر (اختياري)</Label>
-              <Textarea
-                id="add-athkar-virtue"
-                value={newAthkarVirtue}
-                onChange={(e) => setNewAthkarVirtue(e.target.value)}
-                placeholder="مثال: من قاله مائة مرة حطت خطاياه..."
-                lang="ar"
-                rows={2}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="add-athkar-count">عدد التكرار (اختياري)</Label>
-                <Input
-                  id="add-athkar-count"
-                  type="number"
-                  value={newAthkarCount}
-                  onChange={(e) => setNewAthkarCount(e.target.value)}
-                  placeholder="مثال: 3 أو 100"
-                  min="0"
+
+      <div className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto z-50">
+        <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
+            <DialogTrigger asChild>
+                 <Button
+                    className="h-16 w-16 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+                    size="icon"
+                    aria-label="البحث عن ذكر بالذكاء الاصطناعي"
+                >
+                    <Sparkles size={32} />
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg" dir="rtl">
+                <DialogHeader>
+                    <DialogTitle>البحث عن أذكار بالذكاء الاصطناعي</DialogTitle>
+                    <DialogDescription>
+                        اكتب عن نوع الذكر الذي تبحث عنه (مثال: "ذكر للاستغفار" أو "دعاء للرزق"). سيقوم الذكاء الاصطناعي بالبحث وإحضار النتائج.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="ai-query">نص البحث</Label>
+                        <Textarea
+                            id="ai-query"
+                            value={aiQuery}
+                            onChange={(e) => setAiQuery(e.target.value)}
+                            placeholder="مثال: أذكار الصباح"
+                            lang="ar"
+                            rows={2}
+                        />
+                    </div>
+                     <Button onClick={handleAiSearch} disabled={isAiLoading}>
+                        {isAiLoading ? (
+                            <>
+                                <Loader2 className="mr-2 rtl:ml-2 rtl:mr-0 h-4 w-4 animate-spin" />
+                                جاري البحث...
+                            </>
+                        ) : "ابحث"}
+                    </Button>
+                </div>
+                
+                {(aiResults.length > 0 || aiError) && (
+                    <div className="mt-4 max-h-64 overflow-y-auto space-y-2 pr-2">
+                        {aiError && <p className="text-destructive text-center">{aiError}</p>}
+                        {aiResults.map((result, index) => (
+                             <div key={index} className="p-3 border rounded-md bg-muted/50">
+                                <p className="font-arabic" lang="ar">{result.arabic}</p>
+                                {result.virtue && <p className="text-xs text-muted-foreground mt-1" lang="ar">الفضل: {result.virtue}</p>}
+                                <div className="text-xs text-muted-foreground mt-1 flex justify-between">
+                                    <span>التكرار: {result.count || 1}</span>
+                                    {result.readingTimeSeconds && <span>الزمن: ~{result.readingTimeSeconds} ثا</span>}
+                                </div>
+                                <Button size="sm" className="mt-2 w-full" onClick={() => handleAddAiAthkar(result)}>إضافة للمجموعة</Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">إغلاق</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="fixed bottom-8 left-8 rtl:right-8 rtl:left-auto z-50">
+        <Dialog open={isAddAthkarDialogOpen} onOpenChange={setIsAddAthkarDialogOpen}>
+            <DialogTrigger asChild>
+            <Button
+                className="h-16 w-16 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground"
+                size="icon"
+                aria-label="إضافة ذكر جديد"
+            >
+                <Plus size={32} />
+            </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md" dir="rtl">
+            <DialogHeader>
+                <DialogTitle>إضافة ذكر جديد إلى "{group?.name || 'المجموعة'}"</DialogTitle>
+                <DialogDescription>
+                أدخل تفاصيل الذكر الجديد ليتم إضافته إلى هذه المجموعة.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                <Label htmlFor="add-athkar-arabic">نص الذكر (بالعربية)</Label>
+                <Textarea
+                    id="add-athkar-arabic"
+                    value={newAthkarArabic}
+                    onChange={(e) => setNewAthkarArabic(e.target.value)}
+                    placeholder="سبحان الله وبحمده..."
+                    lang="ar"
+                    rows={3}
                 />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="add-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
-                <Input
-                  id="add-athkar-reading-time"
-                  type="number"
-                  value={newAthkarReadingTime}
-                  onChange={(e) => setNewAthkarReadingTime(e.target.value)}
-                  placeholder="مثال: 15"
-                  min="0"
+                </div>
+                <div className="grid gap-2">
+                <Label htmlFor="add-athkar-virtue">فضل الذكر (اختياري)</Label>
+                <Textarea
+                    id="add-athkar-virtue"
+                    value={newAthkarVirtue}
+                    onChange={(e) => setNewAthkarVirtue(e.target.value)}
+                    placeholder="مثال: من قاله مائة مرة حطت خطاياه..."
+                    lang="ar"
+                    rows={2}
                 />
-              </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="add-athkar-count">عدد التكرار (اختياري)</Label>
+                    <Input
+                    id="add-athkar-count"
+                    type="number"
+                    value={newAthkarCount}
+                    onChange={(e) => setNewAthkarCount(e.target.value)}
+                    placeholder="مثال: 3 أو 100"
+                    min="0"
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="add-athkar-reading-time">زمن القراءة/ثانية (اختياري)</Label>
+                    <Input
+                    id="add-athkar-reading-time"
+                    type="number"
+                    value={newAthkarReadingTime}
+                    onChange={(e) => setNewAthkarReadingTime(e.target.value)}
+                    placeholder="مثال: 15"
+                    min="0"
+                    />
+                </div>
+                </div>
             </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">إلغاء</Button>
-            </DialogClose>
-            <Button onClick={handleAddAthkar}>حفظ الذكر</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+                <DialogClose asChild>
+                <Button variant="outline">إلغاء</Button>
+                </DialogClose>
+                <Button onClick={handleAddNewAthkarDialog}>حفظ الذكر</Button>
+            </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      </div>
+
     </div>
   );
 }

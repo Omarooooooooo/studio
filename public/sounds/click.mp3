@@ -1,0 +1,6 @@
+// Adding a binary file is not supported. This is a placeholder.
+// The user should replace this with an actual mp3 file.
+// For example, a short click sound.
+// Content can be sourced from a free sound library.
+// Base64 of a simple click sound:
+// data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...
