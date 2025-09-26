@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, BellRing, BellOff } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 
@@ -37,7 +37,6 @@ const GROUPS_STORAGE_KEY = 'athkari_groups';
 const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 const THEME_STORAGE_KEY = 'athkari-theme';
 const SOUND_STORAGE_KEY = 'athkari-sound-enabled';
-const HAPTICS_STORAGE_KEY = 'athkari-haptics-enabled';
 
 
 export interface AthkarInSession extends StoredAthkar { 
@@ -61,7 +60,6 @@ export default function GroupPage() {
   const [isSortMode, setIsSortMode] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
-  const [isHapticsEnabled, setIsHapticsEnabled] = useState(true);
 
   const [isAddAthkarDialogOpen, setIsAddAthkarDialogOpen] = useState(false);
   const [newAthkarArabic, setNewAthkarArabic] = useState('');
@@ -92,8 +90,6 @@ export default function GroupPage() {
 
       const storedSound = localStorage.getItem(SOUND_STORAGE_KEY);
       setIsSoundEnabled(storedSound ? JSON.parse(storedSound) : true);
-      const storedHaptics = localStorage.getItem(HAPTICS_STORAGE_KEY);
-      setIsHapticsEnabled(storedHaptics ? JSON.parse(storedHaptics) : true);
     }
   }, [isClient]);
 
@@ -116,12 +112,6 @@ export default function GroupPage() {
       localStorage.setItem(SOUND_STORAGE_KEY, JSON.stringify(isSoundEnabled));
     }
   }, [isSoundEnabled, isClient]);
-
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem(HAPTICS_STORAGE_KEY, JSON.stringify(isHapticsEnabled));
-    }
-  }, [isHapticsEnabled, isClient]);
 
   const getStoredGroups = useCallback((): AthkarGroup[] => {
     if (!isClient) return [];
@@ -468,10 +458,6 @@ export default function GroupPage() {
     setIsSoundEnabled(prev => !prev);
   }, []);
 
-  const toggleHaptics = useCallback(() => {
-    setIsHapticsEnabled(prev => !prev);
-  }, []);
-
   if (!isClient || isLoading) {
     return (
       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
@@ -518,14 +504,6 @@ export default function GroupPage() {
                   aria-label={isSoundEnabled ? "تعطيل الصوت" : "تفعيل الصوت"}
                 >
                   {isSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                </Button>
-                <Button
-                  onClick={toggleHaptics}
-                  variant="outline"
-                  size="icon"
-                  aria-label={isHapticsEnabled ? "تعطيل الاهتزاز" : "تفعيل الاهتزاز"}
-                >
-                  {isHapticsEnabled ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
                 </Button>
               </>
             )}
