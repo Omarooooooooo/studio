@@ -132,7 +132,7 @@ export default function AthkarLogPage() {
         )}
       </header>
 
-      <main className="w-full max-w-2xl flex-grow">
+      <main className="w-full max-w-3xl flex-grow">
         {logEntries.length === 0 ? (
           <Card className="shadow-sm">
             <CardContent className="p-6 text-center text-muted-foreground">
