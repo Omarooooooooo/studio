@@ -80,20 +80,25 @@ export default function GroupPage() {
 
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isAudioInitialized = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
-    if (typeof Audio !== 'undefined') {
-        audioRef.current = new Audio(clickSound);
-    }
   }, []);
-
+  
   const playSound = useCallback(() => {
-    if (isSoundEnabled && audioRef.current) {
+    if (isSoundEnabled && isClient) {
+      if (!isAudioInitialized.current) {
+        audioRef.current = new Audio(clickSound);
+        isAudioInitialized.current = true;
+      }
+      if (audioRef.current) {
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+      }
     }
-  }, [isSoundEnabled]);
+  }, [isSoundEnabled, isClient]);
+
 
   useEffect(() => {
     if (isClient) {
@@ -751,3 +756,5 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    
