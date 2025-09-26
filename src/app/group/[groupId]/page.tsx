@@ -28,10 +28,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon, Volume2, VolumeX } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { findAthkar, type FoundAthkar } from '@/ai/flows/find-athkar-flow';
 // @ts-ignore
 import clickSound from '/public/sounds/click.mp3';
 
@@ -78,12 +77,6 @@ export default function GroupPage() {
   const [editedAthkarReadingTime, setEditedAthkarReadingTime] = useState('');
 
   const [deletingAthkar, setDeletingAthkar] = useState<AthkarInSession | null>(null);
-
-  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
-  const [aiQuery, setAiQuery] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiResults, setAiResults] = useState<FoundAthkar[]>([]);
-  const [aiError, setAiError] = useState<string | null>(null);
 
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -271,18 +264,6 @@ export default function GroupPage() {
     setNewAthkarReadingTime('');
     setIsAddAthkarDialogOpen(false);
   }, [newAthkarArabic, newAthkarCount, newAthkarReadingTime, newAthkarVirtue, group, handleAddAthkar]);
-
-
-  const handleAddAiAthkar = useCallback((athkar: FoundAthkar) => {
-        handleAddAthkar({
-            arabic: athkar.arabic,
-            virtue: athkar.virtue ?? undefined,
-            count: athkar.count ?? undefined,
-            readingTimeSeconds: athkar.readingTimeSeconds ?? undefined
-        });
-        // Optionally remove the added athkar from AI results list
-        setAiResults(prev => prev.filter(r => r.arabic !== athkar.arabic));
-    }, [handleAddAthkar]);
 
   const openEditAthkarDialog = useCallback((athkarToEdit: AthkarInSession) => {
     setEditingAthkar(athkarToEdit);
@@ -501,25 +482,6 @@ export default function GroupPage() {
     setIsSoundEnabled(prev => !prev);
   }, []);
 
-  const handleAiSearch = useCallback(async () => {
-    if (!aiQuery.trim()) return;
-    setIsAiLoading(true);
-    setAiResults([]);
-    setAiError(null);
-    try {
-      const result = await findAthkar(aiQuery);
-      if (result && result.athkar.length > 0) {
-        setAiResults(result.athkar);
-      } else {
-        setAiError("لم يتم العثور على أذكار تطابق بحثك.");
-      }
-    } catch (error) {
-      console.error("Error fetching AI suggestions:", error);
-      setAiError("حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.");
-    } finally {
-      setIsAiLoading(false);
-    }
-  }, [aiQuery]);
 
   if (!isClient || isLoading) {
     return (
@@ -708,71 +670,6 @@ export default function GroupPage() {
             </AlertDialogContent>
           </AlertDialog>
         )}
-      </div>
-
-      <div className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto z-50">
-        <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
-            <DialogTrigger asChild>
-                 <Button
-                    className="h-16 w-16 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
-                    size="icon"
-                    aria-label="البحث عن ذكر بالذكاء الاصطناعي"
-                >
-                    <Sparkles size={32} />
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg" dir="rtl">
-                <DialogHeader>
-                    <DialogTitle>البحث عن أذكار بالذكاء الاصطناعي</DialogTitle>
-                    <DialogDescription>
-                        اكتب عن نوع الذكر الذي تبحث عنه (مثال: "ذكر للاستغفار" أو "دعاء للرزق"). سيقوم الذكاء الاصطناعي بالبحث وإحضار النتائج.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="ai-query">نص البحث</Label>
-                        <Textarea
-                            id="ai-query"
-                            value={aiQuery}
-                            onChange={(e) => setAiQuery(e.target.value)}
-                            placeholder="مثال: أذكار الصباح"
-                            lang="ar"
-                            rows={2}
-                        />
-                    </div>
-                     <Button onClick={handleAiSearch} disabled={isAiLoading}>
-                        {isAiLoading ? (
-                            <>
-                                <Loader2 className="mr-2 rtl:ml-2 rtl:mr-0 h-4 w-4 animate-spin" />
-                                جاري البحث...
-                            </>
-                        ) : "ابحث"}
-                    </Button>
-                </div>
-                
-                {(aiResults.length > 0 || aiError) && (
-                    <div className="mt-4 max-h-64 overflow-y-auto space-y-2 pr-2">
-                        {aiError && <p className="text-destructive text-center">{aiError}</p>}
-                        {aiResults.map((result, index) => (
-                             <div key={index} className="p-3 border rounded-md bg-muted/50">
-                                <p className="font-arabic" lang="ar">{result.arabic}</p>
-                                {result.virtue && <p className="text-xs text-muted-foreground mt-1" lang="ar">الفضل: {result.virtue}</p>}
-                                <div className="text-xs text-muted-foreground mt-1 flex justify-between">
-                                    <span>التكرار: {result.count || 1}</span>
-                                    {result.readingTimeSeconds && <span>الزمن: ~{result.readingTimeSeconds} ثا</span>}
-                                </div>
-                                <Button size="sm" className="mt-2 w-full" onClick={() => handleAddAiAthkar(result)}>إضافة للمجموعة</Button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                 <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline">إغلاق</Button>
-                    </DialogClose>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
       </div>
 
       <div className="fixed bottom-8 left-8 rtl:right-8 rtl:left-auto z-50">
