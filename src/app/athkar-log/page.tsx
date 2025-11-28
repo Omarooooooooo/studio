@@ -1,9 +1,8 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AthkarLogStore } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -18,8 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowRight, ListOrdered, Loader2, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
+import { AthkarContext } from '@/context/AthkarContext';
 
 interface LogItem {
   arabic: string;
@@ -28,78 +26,54 @@ interface LogItem {
 
 export default function AthkarLogPage() {
   const router = useRouter();
+  const context = useContext(AthkarContext);
   const [logEntries, setLogEntries] = useState<LogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
 
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [deletingIndividualAthkar, setDeletingIndividualAthkar] = useState<LogItem | null>(null);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
   const loadLogData = useCallback(() => {
-    if (isClient) {
-      setIsLoading(true);
-      try {
-        const logString = localStorage.getItem(ATHKAR_LOG_STORAGE_KEY);
-        if (logString) {
-          const logData: AthkarLogStore = JSON.parse(logString);
-          const entries: LogItem[] = Object.entries(logData)
-            .map(([arabic, totalCompletedRepetitions]) => ({
-              arabic,
-              totalCompletedRepetitions,
-            }))
-            .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions);
-          setLogEntries(entries);
-        } else {
-          setLogEntries([]);
-        }
-      } catch (error) {
-        console.error("Failed to load or parse Athkar log data:", error);
-        setLogEntries([]);
-      }
-      setIsLoading(false);
+    if (context && !context.isInitialLoading) {
+      const entries: LogItem[] = Object.entries(context.athkarLog)
+        .map(([arabic, totalCompletedRepetitions]) => ({
+          arabic,
+          totalCompletedRepetitions,
+        }))
+        .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions);
+      setLogEntries(entries);
     }
-  }, [isClient]);
+  }, [context]);
 
   useEffect(() => {
     loadLogData();
   }, [loadLogData]);
+  
+  if (!context) {
+    return (
+      <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-4 bg-background text-foreground">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">...جاري تهيئة السياق</p>
+      </div>
+    );
+  }
+
+  const { isInitialLoading, clearAthkarLog, deleteAthkarLogEntry } = context;
+
 
   const handleDeleteAllProgress = useCallback(() => {
-    if (isClient) {
-      try {
-        localStorage.removeItem(ATHKAR_LOG_STORAGE_KEY);
-        setLogEntries([]); // Clear displayed entries
-      } catch (error) {
-        console.error("Failed to delete all Athkar log data:", error);
-      }
-      setIsDeleteAllDialogOpen(false);
-    }
-  }, [isClient]);
+    clearAthkarLog();
+    setIsDeleteAllDialogOpen(false);
+  }, [clearAthkarLog]);
 
   const handleDeleteIndividualProgress = useCallback(() => {
-    if (isClient && deletingIndividualAthkar) {
-      try {
-        const logString = localStorage.getItem(ATHKAR_LOG_STORAGE_KEY);
-        if (logString) {
-          const logData: AthkarLogStore = JSON.parse(logString);
-          delete logData[deletingIndividualAthkar.arabic];
-          localStorage.setItem(ATHKAR_LOG_STORAGE_KEY, JSON.stringify(logData));
-          
-          loadLogData(); // Reload data to reflect change
-        }
-      } catch (error) {
-        console.error(`Failed to delete log data for "${deletingIndividualAthkar.arabic}":`, error);
-      }
+    if (deletingIndividualAthkar) {
+      deleteAthkarLogEntry(deletingIndividualAthkar.arabic);
       setDeletingIndividualAthkar(null);
     }
-  }, [isClient, deletingIndividualAthkar, loadLogData]);
+  }, [deletingIndividualAthkar, deleteAthkarLogEntry]);
 
 
-  if (!isClient || isLoading) {
+  if (isInitialLoading) {
     return (
       <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-4 bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -216,5 +190,3 @@ export default function AthkarLogPage() {
     </div>
   );
 }
-
-    

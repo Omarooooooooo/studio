@@ -4,6 +4,7 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { AthkarProvider } from '@/context/AthkarContext';
 
 export const metadata: Metadata = {
   title: 'Athkari - اذكاري',
@@ -46,7 +47,9 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-background text-foreground">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        {children}
+        <AthkarProvider>
+          {children}
+        </AthkarProvider>
         <Toaster />
       </body>
     </html>

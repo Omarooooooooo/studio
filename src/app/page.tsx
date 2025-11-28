@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useContext } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { AthkarGroup } from '@/types';
@@ -31,9 +31,8 @@ import { Label } from '@/components/ui/label';
 import { Plus, Edit2, Trash2, Loader2, Sun, Moon, History } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided } from '@hello-pangea/dnd';
+import { AthkarContext } from '@/context/AthkarContext';
 
-const LOCAL_STORAGE_KEY = 'athkari_groups';
-const THEME_STORAGE_KEY = 'athkari-theme';
 
 interface GroupCardItemProps {
   group: AthkarGroup;
@@ -84,7 +83,8 @@ GroupCardItem.displayName = 'GroupCardItem';
 
 export default function HomePage() {
   const router = useRouter();
-  const [groups, setGroups] = useState<AthkarGroup[]>([]);
+  const context = useContext(AthkarContext);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
@@ -94,66 +94,26 @@ export default function HomePage() {
 
   const [deletingGroup, setDeletingGroup] = useState<AthkarGroup | null>(null);
 
-  const [hydrated, setHydrated] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light'); 
-  
-  useEffect(() => {
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
-    const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    setTheme(initialTheme); 
-    
-    const storedGroupsString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (storedGroupsString) {
-      try {
-        const parsedGroups = JSON.parse(storedGroupsString) as AthkarGroup[];
-        const normalizedGroups = parsedGroups.map(group => ({
-          ...group,
-          athkar: group.athkar || [], 
-        }));
-        setGroups(normalizedGroups);
-      } catch (e) {
-        setGroups([]);
-      }
-    }
-    setHydrated(true);
-  }, []);
+  if (!context) {
+    // This should ideally not happen if the provider is at the root
+    return (
+       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">...جاري تهيئة السياق</p>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (hydrated) {
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(groups));
-      } catch (e) {
-      }
-    }
-  }, [groups, hydrated]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme(prevTheme => {
-      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
-      if (newTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-      return newTheme;
-    });
-  }, []);
-
+  const { groups, addGroup, editGroup, deleteGroup, reorderGroups, theme, toggleTheme, isInitialLoading } = context;
 
   const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
       return;
     }
-    const newGroup: AthkarGroup = {
-      id: Date.now().toString(),
-      name: newGroupName.trim(),
-      athkar: [],
-    };
-    setGroups((prevGroups) => [...prevGroups, newGroup]);
+    addGroup(newGroupName.trim());
     setNewGroupName('');
     setIsAddDialogOpen(false);
-  }, [newGroupName]);
+  }, [newGroupName, addGroup]);
 
   const openEditDialog = useCallback((group: AthkarGroup) => {
     setEditingGroup(group);
@@ -165,12 +125,10 @@ export default function HomePage() {
     if (!editingGroup || !editedGroupName.trim()) {
       return;
     }
-    setGroups(prevGroups =>
-      prevGroups.map(g => g.id === editingGroup.id ? { ...g, name: editedGroupName.trim() } : g)
-    );
+    editGroup(editingGroup.id, editedGroupName.trim());
     setIsEditDialogOpen(false);
     setEditingGroup(null);
-  }, [editingGroup, editedGroupName]);
+  }, [editingGroup, editedGroupName, editGroup]);
 
   const openDeleteDialog = useCallback((group: AthkarGroup) => {
     setDeletingGroup(group);
@@ -179,23 +137,17 @@ export default function HomePage() {
 
   const handleDeleteGroup = useCallback(() => {
     if (!deletingGroup) return;
-    setGroups(prevGroups => prevGroups.filter(g => g.id !== deletingGroup.id));
+    deleteGroup(deletingGroup.id);
     setDeletingGroup(null);
-  }, [deletingGroup]);
+  }, [deletingGroup, deleteGroup]);
 
   const onDragEndGroup = useCallback((result: DropResult) => {
     if (!result.destination) return;
     if (result.destination.index === result.source.index) return;
+    reorderGroups(result.source.index, result.destination.index);
+  }, [reorderGroups]);
 
-    setGroups(prevGroups => {
-      const reorderedGroups = Array.from(prevGroups);
-      const [movedGroup] = reorderedGroups.splice(result.source.index, 1);
-      reorderedGroups.splice(result.destination!.index, 0, movedGroup);
-      return reorderedGroups;
-    });
-  }, []);
-
-  if (!hydrated) {
+  if (isInitialLoading) {
     return (
       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
