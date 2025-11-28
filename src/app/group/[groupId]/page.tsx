@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { AthkarGroup, StoredAthkar } from '@/types'; 
+import type { AthkarGroup, Athkar } from '@/types'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +36,7 @@ const GROUPS_STORAGE_KEY = 'athkari_groups';
 const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 const THEME_STORAGE_KEY = 'athkari-theme';
 
-export interface AthkarInSession extends StoredAthkar { 
+export interface AthkarInSession extends Athkar { 
   sessionProgress: number;
   isSessionHidden: boolean;
 }
@@ -186,16 +186,16 @@ export default function GroupPage() {
     }
   }, [isClient]);
 
-  const handleAddAthkar = useCallback((athkarData: Omit<StoredAthkar, 'id'>) => {
+  const handleAddAthkar = useCallback((athkarData: Omit<Athkar, 'id'>) => {
     if (!athkarData.arabic.trim() || !group) return;
 
-    const newStoredAthkarItem: StoredAthkar = {
+    const newAthkarItem: Athkar = {
         id: Date.now().toString() + Math.random().toString(), // More unique ID
         ...athkarData,
     };
     
     const newAthkarInSession: AthkarInSession = {
-        ...newStoredAthkarItem,
+        ...newAthkarItem,
         sessionProgress: 0,
         isSessionHidden: false,
     };
@@ -709,3 +709,5 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    

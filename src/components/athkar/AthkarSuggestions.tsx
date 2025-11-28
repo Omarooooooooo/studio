@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { StoredAthkar } from '@/types'; // Changed Athkar to StoredAthkar
+import type { Athkar } from '@/types';
 import { suggestAthkar, type SuggestAthkarInput } from '@/ai/flows/suggest-athkar';
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Loader2, Lightbulb } from 'lucide-react';
 // import { useToast } from '@/hooks/use-toast'; // Toasts removed
 
 interface AthkarSuggestionsProps {
-  allAthkar: StoredAthkar[]; // Changed Athkar to StoredAthkar
+  allAthkar: Athkar[]; 
 }
 
 export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
@@ -106,3 +106,5 @@ export function AthkarSuggestions({ allAthkar }: AthkarSuggestionsProps) {
     </Card>
   );
 }
+
+    
