@@ -44,6 +44,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#A7D1AB" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#4D8554" media="(prefers-color-scheme: dark)" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="antialiased bg-background text-foreground">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
