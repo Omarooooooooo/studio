@@ -5,14 +5,22 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AthkarProvider } from '@/context/AthkarContext';
+import { type Viewport } from 'next';
 
 export const metadata: Metadata = {
   title: 'Athkari - اذكاري',
   description: 'Your daily companion for Athkar, with personalized recommendations.',
-  manifest: '/manifest.json',
+  manifest: '/manifest.json', // This will now point to the dynamically generated manifest
 };
 
-const THEME_STORAGE_KEY = 'athkari-theme'; // Ensure this matches the key used in theme toggles
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#A7D1AB' },
+    { media: '(prefers-color-scheme: dark)', color: '#4D8554' },
+  ],
+}
+
+const THEME_STORAGE_KEY = 'athkari-theme';
 
 export default function RootLayout({
   children,
@@ -42,9 +50,7 @@ export default function RootLayout({
       suppressHydrationWarning={true}
     >
       <head>
-        <meta name="theme-color" content="#A7D1AB" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#4D8554" media="(prefers-color-scheme: dark)" />
-        <link rel="manifest" href="/manifest.json" />
+        {/* The theme-color meta tags are now handled by the viewport object */}
       </head>
       <body className="antialiased bg-background text-foreground">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
