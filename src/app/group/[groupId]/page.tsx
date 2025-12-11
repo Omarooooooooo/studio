@@ -32,6 +32,7 @@ import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon } f
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { useAthkarStore } from '@/store/athkarStore';
+import { useUser } from '@/firebase/auth/use-user';
 
 export interface AthkarInSession extends Athkar { 
   sessionProgress: number;
@@ -42,6 +43,7 @@ export default function GroupPage() {
   const router = useRouter();
   const params = useParams() as { groupId?: string };
   const groupId = params.groupId;
+  const { user, loading } = useUser();
   
   const {
     getGroupById,
@@ -55,10 +57,16 @@ export default function GroupPage() {
     isHydrated,
     setInitialLoad,
   } = useAthkarStore();
+  
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
-    setInitialLoad();
-  }, [setInitialLoad]);
+    setInitialLoad(user?.uid);
+  }, [setInitialLoad, user]);
 
   const group = useMemo(() => (groupId ? getGroupById(groupId) : null), [groupId, getGroupById]);
   
@@ -170,7 +178,7 @@ export default function GroupPage() {
     deleteAthkarFromGroup(groupId, deletingAthkar.id);
     setDeletingAthkar(null);
   }, [deletingAthkar, groupId, deleteAthkarFromGroup]);
-
+  
   const handleIncrementCount = useCallback((athkarId: string) => {
     setAthkarInSession(prev => {
         const athkarIndex = prev.findIndex(a => a.id === athkarId);
@@ -194,7 +202,7 @@ export default function GroupPage() {
         return updatedAthkarList;
     });
   }, []);
-  
+
   useEffect(() => {
     athkarInSession.forEach(thikr => {
         const wasCompleted = sessionCompletedAthkarIdsRef.current.has(thikr.id);
@@ -285,7 +293,7 @@ export default function GroupPage() {
   }, []);
 
 
-  if (!isHydrated) {
+  if (loading || !isHydrated || !user) {
     return (
       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />

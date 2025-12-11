@@ -18,6 +18,7 @@ import {
 import { ArrowRight, ListOrdered, Loader2, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAthkarStore } from '@/store/athkarStore';
+import { useUser } from '@/firebase/auth/use-user';
 
 interface LogItem {
   arabic: string;
@@ -26,11 +27,18 @@ interface LogItem {
 
 export default function AthkarLogPage() {
   const router = useRouter();
+  const { user, loading } = useUser();
   const { athkarLog, isHydrated, clearAthkarLog, deleteAthkarLogEntry, setInitialLoad } = useAthkarStore();
   
   useEffect(() => {
-    setInitialLoad();
-  }, [setInitialLoad]);
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+  
+  useEffect(() => {
+    setInitialLoad(user?.uid);
+  }, [setInitialLoad, user]);
   
   const [logEntries, setLogEntries] = useState<LogItem[]>([]);
 
@@ -62,7 +70,7 @@ export default function AthkarLogPage() {
   }, [deletingIndividualAthkar, deleteAthkarLogEntry]);
 
 
-  if (!isHydrated) {
+  if (loading || !isHydrated || !user) {
     return (
       <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-4 bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -179,3 +187,5 @@ export default function AthkarLogPage() {
     </div>
   );
 }
+
+    

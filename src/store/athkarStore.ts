@@ -1,14 +1,14 @@
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import type { AthkarGroup, Athkar, AthkarLogStore } from '@/types';
+import { persist, createJSONStorage, PersistOptions } from 'zustand/middleware';
+import type { AthkarGroup, Athkar, AthkarLogStore, AppState } from '@/types';
+import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
 
 const THEME_STORAGE_KEY = 'athkari-theme';
 
-// This function can be called on the client side to get the initial theme
 export const loadInitialTheme = (): 'light' | 'dark' => {
   if (typeof window === 'undefined') {
-    return 'light'; // Default for SSR
+    return 'light'; 
   }
   const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
   if (storedTheme) {
@@ -22,11 +22,11 @@ type AthkarState = {
   groups: AthkarGroup[];
   athkarLog: AthkarLogStore;
   theme: 'light' | 'dark';
-  isHydrated: boolean; // We still need this to prevent SSR/hydration mismatch
+  isHydrated: boolean; 
 };
 
 type AthkarActions = {
-  setInitialLoad: () => void;
+  setInitialLoad: (uid?: string) => void;
   addGroup: (name: string) => void;
   editGroup: (id: string, newName: string) => void;
   deleteGroup: (id: string) => void;
@@ -42,6 +42,62 @@ type AthkarActions = {
   toggleTheme: () => void;
 };
 
+const persistOptions: PersistOptions<AthkarState & AthkarActions, { user: AppState | null }> = {
+  name: 'athkari-storage',
+  storage: {
+    getItem: async (name) => {
+      const str = localStorage.getItem(name);
+      if (!str) return null;
+      const { state, version } = JSON.parse(str);
+      const userState = state as AthkarState & AthkarActions;
+      
+      const uid = userState.getGroupById('user-id')?.name; // A bit hacky way to get uid
+      if (!uid) {
+        return JSON.stringify({ state, version });
+      }
+
+      const db = getFirestore();
+      const docRef = doc(db, 'users', uid);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const firestoreState = docSnap.data() as AppState;
+        return JSON.stringify({
+          state: {
+            ...userState,
+            groups: firestoreState.groups,
+            athkarLog: firestoreState.athkarLog,
+          },
+          version,
+        });
+      } else {
+         return JSON.stringify({ state, version });
+      }
+    },
+    setItem: async (name, value) => {
+      const { state } = JSON.parse(value) as { state: AthkarState };
+      const uid = get().getGroupById('user-id')?.name; // Hacky way to get uid
+
+      if (uid) {
+        const db = getFirestore();
+        const docRef = doc(db, 'users', uid);
+        const dataToSave: AppState = {
+          groups: state.groups,
+          athkarLog: state.athkarLog,
+        };
+        await setDoc(docRef, dataToSave, { merge: true });
+      }
+      
+      localStorage.setItem(name, value);
+    },
+    removeItem: (name) => localStorage.removeItem(name),
+  },
+  partialize: (state) => ({ 
+    groups: state.groups, 
+    athkarLog: state.athkarLog 
+  }),
+};
+
 
 export const useAthkarStore = create<AthkarState & AthkarActions>()(
   persist(
@@ -49,8 +105,19 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
       groups: [],
       athkarLog: {},
       theme: 'light', 
-      isHydrated: false, // Start as not hydrated
-      setInitialLoad: () => {
+      isHydrated: false,
+      setInitialLoad: (uid) => {
+        if (get().isHydrated) return; // Prevent re-hydration
+        
+        // This is a temporary hack to store uid in the store without changing the main state structure much
+        if (uid) {
+            const existingUser = get().groups.find(g => g.id === 'user-id');
+            if (!existingUser) {
+                get().addGroup('user-id'); // This is a dummy group to hold the userId
+                get().editGroup('user-id', uid);
+            }
+        }
+        
         set({ isHydrated: true, theme: loadInitialTheme() });
       },
       addGroup: (name) => {
@@ -59,7 +126,7 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
           name: name,
           athkar: [],
         };
-        set((state) => ({ groups: [...state.groups, newGroup] }));
+        set((state) => ({ groups: [...state.groups.filter(g => g.id !== 'user-id'), newGroup] }));
       },
       editGroup: (id, newName) =>
         set((state) => ({
@@ -69,10 +136,12 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
         set((state) => ({ groups: state.groups.filter((g) => g.id !== id) })),
       reorderGroups: (startIndex, endIndex) =>
         set((state) => {
-          const result = Array.from(state.groups);
-          const [removed] = result.splice(startIndex, 1);
-          result.splice(endIndex, 0, removed);
-          return { groups: result };
+           const userGroup = state.groups.find(g => g.id === 'user-id');
+           const normalGroups = state.groups.filter(g => g.id !== 'user-id');
+           const [removed] = normalGroups.splice(startIndex, 1);
+           normalGroups.splice(endIndex, 0, removed);
+           const finalGroups = userGroup ? [userGroup, ...normalGroups] : normalGroups;
+           return { groups: finalGroups };
         }),
       getGroupById: (id) => get().groups.find((g) => g.id === id),
       addAthkarToGroup: (groupId, athkarData) => {
@@ -147,12 +216,8 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
           return { theme: newTheme };
         }),
     }),
-    {
-      name: 'athkari-storage', 
-      storage: createJSONStorage(() => localStorage), 
-      // We only persist the data, not the UI state like `isHydrated` or `theme`
-      partialize: (state) => ({ groups: state.groups, athkarLog: state.athkarLog }),
-      // onRehydrateStorage is removed to simplify and control hydration manually.
-    }
+    persistOptions
   )
 );
+
+    

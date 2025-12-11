@@ -28,10 +28,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit2, Trash2, Loader2, Sun, Moon, History } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, Sun, Moon, History, LogOut } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided } from '@hello-pangea/dnd';
 import { useAthkarStore } from '@/store/athkarStore';
+import { useUser } from '@/firebase/auth/use-user';
+import { getAuth, signOut } from 'firebase/auth';
 
 
 interface GroupCardItemProps {
@@ -83,6 +85,7 @@ GroupCardItem.displayName = 'GroupCardItem';
 
 export default function HomePage() {
   const router = useRouter();
+  const { user, loading } = useUser();
   
   const { 
     groups, 
@@ -97,8 +100,14 @@ export default function HomePage() {
   } = useAthkarStore();
 
   useEffect(() => {
-    setInitialLoad();
-  }, [setInitialLoad]);
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+  
+  useEffect(() => {
+    setInitialLoad(user?.uid);
+  }, [setInitialLoad, user]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -143,6 +152,12 @@ export default function HomePage() {
     deleteGroup(deletingGroup.id);
     setDeletingGroup(null);
   }, [deletingGroup, deleteGroup]);
+  
+  const handleLogout = async () => {
+    const auth = getAuth();
+    await signOut(auth);
+    router.push('/login');
+  };
 
   const onDragEndGroup = useCallback((result: DropResult) => {
     if (!result.destination) return;
@@ -150,7 +165,7 @@ export default function HomePage() {
     reorderGroups(result.source.index, result.destination.index);
   }, [reorderGroups]);
 
-  if (!isHydrated) {
+  if (loading || !isHydrated || !user) {
     return (
       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -163,14 +178,19 @@ export default function HomePage() {
     <div dir="rtl" className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="p-4 md:p-8 animate-slide-in-from-right flex-grow flex flex-col items-center">
         <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
-          <Button
-            onClick={toggleTheme}
-            variant="outline"
-            size="icon"
-            aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
-          >
-            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-          </Button>
+         <div className='flex items-center gap-1'>
+            <Button
+              onClick={toggleTheme}
+              variant="outline"
+              size="icon"
+              aria-label={theme === 'light' ? "تفعيل الوضع الليلي" : "تفعيل الوضع النهاري"}
+            >
+              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            </Button>
+            <Button onClick={handleLogout} variant="outline" size="icon" aria-label="تسجيل الخروج">
+              <LogOut className="h-5 w-5 text-destructive" />
+            </Button>
+          </div>
 
           <h1 className="text-4xl font-bold text-primary text-center flex-grow">
             أذكاري
@@ -322,3 +342,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    

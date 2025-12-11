@@ -6,7 +6,6 @@ export interface Athkar {
   virtue?: string; // Virtue of the Athkar (فضله)
   count?: number; // Target repetitions for one "cycle" of completion
   readingTimeSeconds?: number; // Reading time in seconds
-  // completedCount is removed, historical data will be in a separate log
 }
 
 // Updated type for Athkar Group
@@ -20,3 +19,11 @@ export interface AthkarGroup {
 export interface AthkarLogStore {
   [athkarArabic: string]: number; // key is Athkar Arabic text, value is total completed repetitions
 }
+
+// Represents the entire state of the user's data in Firestore
+export interface AppState {
+  groups: AthkarGroup[];
+  athkarLog: AthkarLogStore;
+}
+
+    
