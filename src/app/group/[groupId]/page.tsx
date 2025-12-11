@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { AthkarGroup, Athkar } from '@/types'; 
 import { Button } from '@/components/ui/button';
@@ -57,7 +57,16 @@ export default function GroupPage() {
 
   const group = groupId ? getGroupById(groupId) : null;
   
-  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>([]);
+  const initialAthkarInSession = useMemo(() => {
+    if (!group) return [];
+    return group.athkar.map(thikr => ({
+      ...thikr,
+      sessionProgress: 0,
+      isSessionHidden: false,
+    }));
+  }, [group]);
+
+  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>(initialAthkarInSession);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
 
@@ -78,15 +87,8 @@ export default function GroupPage() {
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    if (group) {
-        const sessionAthkar = group.athkar.map(thikr => ({
-          ...thikr,
-          sessionProgress: 0,
-          isSessionHidden: false,
-        }));
-        setAthkarInSession(sessionAthkar);
-    }
-  }, [group]);
+    setAthkarInSession(initialAthkarInSession);
+  }, [initialAthkarInSession]);
 
 
   useEffect(() => {
