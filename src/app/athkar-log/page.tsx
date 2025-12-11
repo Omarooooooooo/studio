@@ -69,7 +69,7 @@ export default function AthkarLogPage() {
   return (
     <div dir="rtl" className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
       <header className="w-full max-w-3xl mb-8 flex justify-between items-center">
-        <Button onClick={() => router.back()} variant="outline" size="icon" aria-label="العودة للخلف">
+        <Button onClick={() => router.push('/')} variant="outline" size="icon" aria-label="العودة للخلف">
           <ArrowRight className="h-5 w-5" />
         </Button>
         <h1 className="text-3xl font-bold text-primary flex items-center">
