@@ -4,8 +4,8 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { AthkarProvider } from '@/context/AthkarContext';
 import { type Viewport } from 'next';
+import { StoreInitializer } from '@/store/StoreInitializer';
 
 export const metadata: Metadata = {
   title: 'Athkari - اذكاري',
@@ -53,10 +53,9 @@ export default function RootLayout({
         {/* The theme-color meta tags are now handled by the viewport object */}
       </head>
       <body className="antialiased bg-background text-foreground">
+        <StoreInitializer />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <AthkarProvider>
           {children}
-        </AthkarProvider>
         <Toaster />
       </body>
     </html>

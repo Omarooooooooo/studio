@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useContext } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { AthkarGroup, Athkar } from '@/types'; 
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ import {
 import { ArrowRight, Plus, Loader2, RefreshCcw, Minus, ListFilter, Sun, Moon } from 'lucide-react';
 import { AthkarList } from '@/components/athkar/AthkarList';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { AthkarContext } from '@/context/AthkarContext';
+import { useAthkarStore } from '@/store/athkarStore';
 
 export interface AthkarInSession extends Athkar { 
   sessionProgress: number;
@@ -43,11 +43,21 @@ export default function GroupPage() {
   const params = useParams() as { groupId?: string };
   const groupId = params.groupId;
   
-  const context = useContext(AthkarContext);
-  const [group, setGroup] = useState<AthkarGroup | null>(null);
-  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>([]);
+  const {
+    getGroupById,
+    addAthkarToGroup,
+    editAthkarInGroup,
+    deleteAthkarFromGroup,
+    reorderAthkarInGroup,
+    updateAthkarLog,
+    theme,
+    toggleTheme,
+    isHydrated,
+  } = useAthkarStore();
 
-  const [isLoading, setIsLoading] = useState(true);
+  const group = groupId ? getGroupById(groupId) : null;
+  
+  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>([]);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
 
@@ -68,39 +78,22 @@ export default function GroupPage() {
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    if (context && !context.isInitialLoading && groupId) {
-      const currentGroup = context.groups.find(g => g.id === groupId);
-      if (currentGroup) {
-        setGroup(currentGroup);
-        const sessionAthkar = currentGroup.athkar.map(thikr => ({
+    if (group) {
+        const sessionAthkar = group.athkar.map(thikr => ({
           ...thikr,
           sessionProgress: 0,
           isSessionHidden: false,
         }));
         setAthkarInSession(sessionAthkar);
-      } else {
-        setGroup(null);
-      }
-      setIsLoading(false);
     }
-  }, [context, groupId]);
+  }, [group]);
 
 
   useEffect(() => {
     sessionCompletedAthkarIdsRef.current.clear();
   }, [groupId]);
 
-  if (!context) {
-    return (
-      <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg">...جاري تهيئة السياق</p>
-      </div>
-    );
-  }
-
-  const { isInitialLoading, getGroupById, addAthkarToGroup, editAthkarInGroup, deleteAthkarFromGroup, reorderAthkarInGroup, updateAthkarLog, theme, toggleTheme } = context;
-
+  
   const handleAddAthkar = useCallback((athkarData: Omit<Athkar, 'id'>) => {
     if (!athkarData.arabic.trim() || !groupId) return;
 
@@ -328,7 +321,7 @@ export default function GroupPage() {
   }, []);
 
 
-  if (isInitialLoading || isLoading) {
+  if (!isHydrated) {
     return (
       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useContext } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowRight, ListOrdered, Loader2, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AthkarContext } from '@/context/AthkarContext';
+import { useAthkarStore } from '@/store/athkarStore';
 
 interface LogItem {
   arabic: string;
@@ -26,15 +26,15 @@ interface LogItem {
 
 export default function AthkarLogPage() {
   const router = useRouter();
-  const context = useContext(AthkarContext);
+  const { athkarLog, isHydrated, clearAthkarLog, deleteAthkarLogEntry } = useAthkarStore();
   const [logEntries, setLogEntries] = useState<LogItem[]>([]);
 
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [deletingIndividualAthkar, setDeletingIndividualAthkar] = useState<LogItem | null>(null);
 
-  const loadLogData = useCallback(() => {
-    if (context && !context.isInitialLoading) {
-      const entries: LogItem[] = Object.entries(context.athkarLog)
+  useEffect(() => {
+    if (isHydrated) {
+      const entries: LogItem[] = Object.entries(athkarLog)
         .map(([arabic, totalCompletedRepetitions]) => ({
           arabic,
           totalCompletedRepetitions,
@@ -42,24 +42,8 @@ export default function AthkarLogPage() {
         .sort((a, b) => b.totalCompletedRepetitions - a.totalCompletedRepetitions);
       setLogEntries(entries);
     }
-  }, [context]);
-
-  useEffect(() => {
-    loadLogData();
-  }, [loadLogData]);
+  }, [athkarLog, isHydrated]);
   
-  if (!context) {
-    return (
-      <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-4 bg-background text-foreground">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg">...جاري تهيئة السياق</p>
-      </div>
-    );
-  }
-
-  const { isInitialLoading, clearAthkarLog, deleteAthkarLogEntry } = context;
-
-
   const handleDeleteAllProgress = useCallback(() => {
     clearAthkarLog();
     setIsDeleteAllDialogOpen(false);
@@ -73,7 +57,7 @@ export default function AthkarLogPage() {
   }, [deletingIndividualAthkar, deleteAthkarLogEntry]);
 
 
-  if (isInitialLoading) {
+  if (!isHydrated) {
     return (
       <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-4 bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />

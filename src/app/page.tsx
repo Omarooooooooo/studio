@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, memo, useContext } from 'react';
+import { useState, useCallback, memo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { AthkarGroup } from '@/types';
@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Edit2, Trash2, Loader2, Sun, Moon, History } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided } from '@hello-pangea/dnd';
-import { AthkarContext } from '@/context/AthkarContext';
+import { useAthkarStore } from '@/store/athkarStore';
 
 
 interface GroupCardItemProps {
@@ -83,7 +83,18 @@ GroupCardItem.displayName = 'GroupCardItem';
 
 export default function HomePage() {
   const router = useRouter();
-  const context = useContext(AthkarContext);
+  
+  const { 
+    groups, 
+    addGroup, 
+    editGroup, 
+    deleteGroup, 
+    reorderGroups, 
+    theme, 
+    toggleTheme, 
+    isInitialLoading,
+    isHydrated 
+  } = useAthkarStore();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -93,18 +104,6 @@ export default function HomePage() {
   const [editedGroupName, setEditedGroupName] = useState('');
 
   const [deletingGroup, setDeletingGroup] = useState<AthkarGroup | null>(null);
-
-  if (!context) {
-    // This should ideally not happen if the provider is at the root
-    return (
-       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg">...جاري تهيئة السياق</p>
-      </div>
-    );
-  }
-
-  const { groups, addGroup, editGroup, deleteGroup, reorderGroups, theme, toggleTheme, isInitialLoading } = context;
 
   const handleAddGroup = useCallback(() => {
     if (!newGroupName.trim()) {
@@ -147,11 +146,11 @@ export default function HomePage() {
     reorderGroups(result.source.index, result.destination.index);
   }, [reorderGroups]);
 
-  if (isInitialLoading) {
+  if (!isHydrated) {
     return (
       <div dir="rtl" className="flex flex-col justify-center items-center min-h-screen bg-background text-foreground p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg">جاري تحميل المجموعات...</p>
+        <p className="text-lg">جاري تحميل التطبيق...</p>
       </div>
     );
   }
