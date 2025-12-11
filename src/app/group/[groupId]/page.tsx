@@ -277,21 +277,25 @@ export default function GroupPage() {
   }, [updateAthkarLog]);
 
   const handleResetAllAthkar = useCallback(() => {
-    setAthkarInSession(prev => prev.map(a => ({
-        ...a,
-        sessionProgress: 0,
-        isSessionHidden: false,
-      })));
-    
-    // Reverse log updates
+    // Reverse log updates for completed athkar in the current session
     sessionCompletedAthkarIdsRef.current.forEach(athkarId => {
-      const thikr = athkarInSession.find(a => a.id === athkarId);
+      // Find the original athkar data from the group to get arabic text and count
+      const thikr = group?.athkar.find(a => a.id === athkarId);
       if (thikr) {
         updateAthkarLog(thikr.arabic, -(thikr.count || 1));
       }
     });
     sessionCompletedAthkarIdsRef.current.clear();
-  }, [athkarInSession, updateAthkarLog]);
+
+    // Reset the session state for the UI
+    setAthkarInSession(prev =>
+      prev.map(a => ({
+        ...a,
+        sessionProgress: 0,
+        isSessionHidden: false,
+      }))
+    );
+  }, [group, updateAthkarLog]);
 
   const onDragEndAthkar = useCallback((result: DropResult) => {
     if (!result.destination || !groupId) return;
