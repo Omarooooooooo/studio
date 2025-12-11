@@ -2,15 +2,16 @@
 // For assistance, please contact the support team.
 // This file is used to initialize the Firebase app.
 // It is not intended for direct use by the developer.
-import { initializeApp, getApp, getApps, FirebaseApp } from "firebase/app";
+import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 
 const firebaseConfig = {
-    "apiKey": "your-api-key",
-    "authDomain": "your-auth-domain",
-    "projectId": "your-project-id",
-    "storageBucket": "your-storage-bucket",
-    "messagingSenderId": "your-messaging-sender-id",
-    "appId": "your-app-id"
+    "apiKey": "AIzaSyD4hoy18alb6Kk6NDsmdE...",
+    "authDomain": "athkari-app-c88fa.firebaseapp.com",
+    "projectId": "athkari-app-c88fa",
+    "storageBucket": "athkari-app-c88fa.appspot.com",
+    "messagingSenderId": "258030956834",
+    "appId": "1:258030956834:web:3d107f878a5b2a0c956834",
+    "measurementId": "G-PJHJ9ZNPTB"
 };
 
 function createFirebaseApp(config: any): FirebaseApp {
