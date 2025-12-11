@@ -92,9 +92,13 @@ export default function HomePage() {
     reorderGroups, 
     theme, 
     toggleTheme, 
-    isInitialLoading,
-    isHydrated 
+    isHydrated,
+    setInitialLoad
   } = useAthkarStore();
+
+  useEffect(() => {
+    setInitialLoad();
+  }, [setInitialLoad]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');

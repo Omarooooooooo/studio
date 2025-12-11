@@ -3,18 +3,30 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AthkarGroup, Athkar, AthkarLogStore } from '@/types';
 
-const GROUPS_STORAGE_KEY = 'athkari_groups';
-const ATHKAR_LOG_STORAGE_KEY = 'athkari_separate_log_data';
 const THEME_STORAGE_KEY = 'athkari-theme';
+
+// This function can be called on the client side to get the initial theme
+export const loadInitialTheme = (): 'light' | 'dark' => {
+  if (typeof window === 'undefined') {
+    return 'light'; // Default for SSR
+  }
+  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
+  if (storedTheme) {
+    return storedTheme;
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
 
 type AthkarState = {
   groups: AthkarGroup[];
   athkarLog: AthkarLogStore;
   theme: 'light' | 'dark';
-  isHydrated: boolean;
+  isHydrated: boolean; // We still need this to prevent SSR/hydration mismatch
 };
 
 type AthkarActions = {
+  setInitialLoad: () => void;
   addGroup: (name: string) => void;
   editGroup: (id: string, newName: string) => void;
   deleteGroup: (id: string) => void;
@@ -28,18 +40,6 @@ type AthkarActions = {
   clearAthkarLog: () => void;
   deleteAthkarLogEntry: (athkarArabic: string) => void;
   toggleTheme: () => void;
-  setHydrated: () => void;
-};
-
-const getDefaultTheme = (): 'light' | 'dark' => {
-  if (typeof window === 'undefined') {
-    return 'light';
-  }
-  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
-  if (storedTheme) {
-    return storedTheme;
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
 
@@ -48,9 +48,11 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
     (set, get) => ({
       groups: [],
       athkarLog: {},
-      theme: 'light', // Default, will be updated on hydration
-      isHydrated: false,
-      setHydrated: () => set({ isHydrated: true }),
+      theme: 'light', 
+      isHydrated: false, // Start as not hydrated
+      setInitialLoad: () => {
+        set({ isHydrated: true, theme: loadInitialTheme() });
+      },
       addGroup: (name) => {
         const newGroup: AthkarGroup = {
           id: Date.now().toString(),
@@ -146,23 +148,11 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
         }),
     }),
     {
-      name: 'athkari-storage', // name of the item in the storage (must be unique)
-      storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
-      partialize: (state) => ({ groups: state.groups, athkarLog: state.athkarLog, theme: state.theme }),
-      onRehydrateStorage: () => (state) => {
-        if(state) {
-            state.setHydrated();
-            const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null;
-            const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            state.theme = theme;
-        }
-      },
+      name: 'athkari-storage', 
+      storage: createJSONStorage(() => localStorage), 
+      // We only persist the data, not the UI state like `isHydrated` or `theme`
+      partialize: (state) => ({ groups: state.groups, athkarLog: state.athkarLog }),
+      // onRehydrateStorage is removed to simplify and control hydration manually.
     }
   )
 );
-
-// Call this on initial app load
-if (typeof window !== 'undefined') {
-    const initialTheme = useAthkarStore.getState().theme;
-    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
-}

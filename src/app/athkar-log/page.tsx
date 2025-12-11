@@ -26,7 +26,12 @@ interface LogItem {
 
 export default function AthkarLogPage() {
   const router = useRouter();
-  const { athkarLog, isHydrated, clearAthkarLog, deleteAthkarLogEntry } = useAthkarStore();
+  const { athkarLog, isHydrated, clearAthkarLog, deleteAthkarLogEntry, setInitialLoad } = useAthkarStore();
+  
+  useEffect(() => {
+    setInitialLoad();
+  }, [setInitialLoad]);
+  
   const [logEntries, setLogEntries] = useState<LogItem[]>([]);
 
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);

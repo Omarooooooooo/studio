@@ -5,12 +5,11 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { type Viewport } from 'next';
-import { StoreInitializer } from '@/store/StoreInitializer';
 
 export const metadata: Metadata = {
   title: 'Athkari - اذكاري',
   description: 'Your daily companion for Athkar, with personalized recommendations.',
-  manifest: '/manifest.json', // This will now point to the dynamically generated manifest
+  manifest: '/manifest.json', 
 };
 
 export const viewport: Viewport = {
@@ -27,6 +26,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // This script is essential to avoid the "flash of incorrect theme" (FOIT).
+  // It runs before React hydrates, so it's faster than a useEffect.
   const themeScript = `
     (function() {
       try {
@@ -37,7 +38,7 @@ export default function RootLayout({
           document.documentElement.classList.remove('dark');
         }
       } catch (e) {
-        console.error('Error applying initial theme:', e);
+        // Ignore errors in case localStorage is not available
       }
     })();
   `;
@@ -47,9 +48,10 @@ export default function RootLayout({
       lang="ar" 
       dir="rtl" 
       className={`${GeistSans.variable} ${GeistMono.variable}`}
-      suppressHydrationWarning={true}
+      suppressHydrationWarning={true} // Important because we are setting the theme class manually
     >
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {/* Apple Touch Icons */}
         <link rel="apple-touch-icon" sizes="57x57" href="/apple-icon-57x57.png" />
         <link rel="apple-touch-icon" sizes="60x60" href="/apple-icon-60x60.png" />
@@ -73,12 +75,9 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#A7D1AB" />
         <meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />
         
-        {/* The theme-color meta tags are now handled by the viewport object */}
       </head>
       <body className="antialiased bg-background text-foreground">
-        <StoreInitializer />
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-          {children}
+        {children}
         <Toaster />
       </body>
     </html>

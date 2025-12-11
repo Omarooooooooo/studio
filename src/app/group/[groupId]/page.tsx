@@ -53,20 +53,28 @@ export default function GroupPage() {
     theme,
     toggleTheme,
     isHydrated,
+    setInitialLoad,
   } = useAthkarStore();
 
-  const group = groupId ? getGroupById(groupId) : null;
+  useEffect(() => {
+    setInitialLoad();
+  }, [setInitialLoad]);
+
+  const group = useMemo(() => (groupId ? getGroupById(groupId) : null), [groupId, getGroupById]);
   
-  const initialAthkarInSession = useMemo(() => {
-    if (!group) return [];
-    return group.athkar.map(thikr => ({
-      ...thikr,
-      sessionProgress: 0,
-      isSessionHidden: false,
-    }));
+  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>([]);
+  
+  useEffect(() => {
+    if (group) {
+        setAthkarInSession(group.athkar.map(thikr => ({
+            ...thikr,
+            sessionProgress: 0,
+            isSessionHidden: false,
+        })));
+    }
   }, [group]);
 
-  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>(initialAthkarInSession);
+
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [isSortMode, setIsSortMode] = useState(false);
 
@@ -87,27 +95,13 @@ export default function GroupPage() {
   const sessionCompletedAthkarIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    setAthkarInSession(initialAthkarInSession);
-  }, [initialAthkarInSession]);
-
-
-  useEffect(() => {
     sessionCompletedAthkarIdsRef.current.clear();
   }, [groupId]);
 
   
   const handleAddAthkar = useCallback((athkarData: Omit<Athkar, 'id'>) => {
     if (!athkarData.arabic.trim() || !groupId) return;
-
-    const newAthkarItem = addAthkarToGroup(groupId, athkarData);
-    if(newAthkarItem) {
-        const newAthkarInSession: AthkarInSession = {
-            ...newAthkarItem,
-            sessionProgress: 0,
-            isSessionHidden: false,
-        };
-        setAthkarInSession(prev => [...prev, newAthkarInSession]);
-    }
+    addAthkarToGroup(groupId, athkarData);
   }, [groupId, addAthkarToGroup]);
 
 
@@ -160,11 +154,6 @@ export default function GroupPage() {
     };
 
     editAthkarInGroup(groupId, editingAthkar.id, updatedAthkarData);
-
-    setAthkarInSession(prev => prev.map(a => 
-      a.id === editingAthkar.id ? { ...a, ...updatedAthkarData } : a
-    ));
-
     setIsEditAthkarDialogOpen(false);
     setEditingAthkar(null);
   }, [editingAthkar, editedAthkarArabic, editedAthkarCount, editedAthkarReadingTime, editedAthkarVirtue, groupId, editAthkarInGroup]);
@@ -176,28 +165,24 @@ export default function GroupPage() {
   const handleDeleteAthkar = useCallback(() => {
     if (!deletingAthkar || !groupId) return;
     deleteAthkarFromGroup(groupId, deletingAthkar.id);
-    setAthkarInSession(prev => prev.filter(a => a.id !== deletingAthkar.id));
     setDeletingAthkar(null);
   }, [deletingAthkar, groupId, deleteAthkarFromGroup]);
 
-
- const handleIncrementCount = useCallback((athkarId: string) => {
+  const handleIncrementCount = useCallback((athkarId: string) => {
     setAthkarInSession(prev => {
         const athkarIndex = prev.findIndex(a => a.id === athkarId);
         if (athkarIndex === -1) return prev;
 
         const currentThikr = prev[athkarIndex];
-        // If already completed in session, do nothing.
         if (currentThikr.isSessionHidden) return prev;
 
         const targetCount = currentThikr.count || 1;
         const newSessionProgress = Math.min(currentThikr.sessionProgress + 1, targetCount);
-        const isNowCompleted = newSessionProgress >= targetCount;
         
         const updatedAthkar = {
             ...currentThikr,
             sessionProgress: newSessionProgress,
-            isSessionHidden: isNowCompleted,
+            isSessionHidden: newSessionProgress >= targetCount,
         };
 
         const updatedAthkarList = [...prev];
@@ -207,18 +192,15 @@ export default function GroupPage() {
     });
   }, []);
   
-  // Effect to sync with the permanent log AFTER the state has been updated.
   useEffect(() => {
     athkarInSession.forEach(thikr => {
         const wasCompleted = sessionCompletedAthkarIdsRef.current.has(thikr.id);
         const isNowCompleted = thikr.isSessionHidden;
 
         if (isNowCompleted && !wasCompleted) {
-            // The athkar has just been completed
             updateAthkarLog(thikr.arabic, thikr.count || 1);
             sessionCompletedAthkarIdsRef.current.add(thikr.id);
         } else if (!isNowCompleted && wasCompleted) {
-            // The athkar has been "un-completed" (e.g., by decrementing)
             updateAthkarLog(thikr.arabic, -(thikr.count || 1));
             sessionCompletedAthkarIdsRef.current.delete(thikr.id);
         }
@@ -245,7 +227,6 @@ export default function GroupPage() {
       if (athkarIndex === -1) return prev;
 
       const currentThikr = prev[athkarIndex];
-      // This is for non-countable athkar, count is 1.
       if (currentThikr.count && currentThikr.count > 1) return prev; 
       
       const isNowCompleted = !currentThikr.isSessionHidden;
@@ -263,9 +244,7 @@ export default function GroupPage() {
   }, []);
 
   const handleResetAllAthkar = useCallback(() => {
-    // Reverse log updates for completed athkar in the current session
     sessionCompletedAthkarIdsRef.current.forEach(athkarId => {
-      // Find the original athkar data from the group to get arabic text and count
       const thikr = group?.athkar.find(a => a.id === athkarId);
       if (thikr) {
         updateAthkarLog(thikr.arabic, -(thikr.count || 1));
@@ -273,7 +252,6 @@ export default function GroupPage() {
     });
     sessionCompletedAthkarIdsRef.current.clear();
 
-    // Reset the session state for the UI
     setAthkarInSession(prev =>
       prev.map(a => ({
         ...a,
@@ -289,13 +267,6 @@ export default function GroupPage() {
     
     reorderAthkarInGroup(groupId, result.source.index, result.destination.index);
     
-    setAthkarInSession(prev => {
-        const reordered = Array.from(prev);
-        const [moved] = reordered.splice(result.source.index, 1);
-        reordered.splice(result.destination!.index, 0, moved);
-        return reordered;
-    });
-
   }, [groupId, reorderAthkarInGroup]);
 
   const handleIncrementFontSize = useCallback(() => {
@@ -566,6 +537,3 @@ export default function GroupPage() {
     </div>
   );
 }
-
-
-    
