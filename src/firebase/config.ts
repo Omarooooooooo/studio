@@ -5,12 +5,12 @@
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 
 const firebaseConfig = {
-    "apiKey": "AIzaSyD4hoy18alb6Kk6NDsmdE...",
+    "apiKey": "AIzaSyD4hoy18alb6Kk6NDsmdEfepljPA7VHuds",
     "authDomain": "athkari-app-c88fa.firebaseapp.com",
     "projectId": "athkari-app-c88fa",
-    "storageBucket": "athkari-app-c88fa.appspot.com",
+    "storageBucket": "athkari-app-c88fa.firebasestorage.app",
     "messagingSenderId": "258030956834",
-    "appId": "1:258030956834:web:3d107f878a5b2a0c956834",
+    "appId": "1:258030956834:web:3d107f8786c7e1e16ef57b",
     "measurementId": "G-PJHJ9ZNPTB"
 };
 
