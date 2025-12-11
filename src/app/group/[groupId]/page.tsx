@@ -62,17 +62,20 @@ export default function GroupPage() {
 
   const group = useMemo(() => (groupId ? getGroupById(groupId) : null), [groupId, getGroupById]);
   
-  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>([]);
-  
-  useEffect(() => {
-    if (group) {
-        setAthkarInSession(group.athkar.map(thikr => ({
-            ...thikr,
-            sessionProgress: 0,
-            isSessionHidden: false,
-        })));
-    }
+  const initialAthkarInSession = useMemo(() => {
+    if (!group) return [];
+    return group.athkar.map(thikr => ({
+        ...thikr,
+        sessionProgress: 0,
+        isSessionHidden: false,
+    }));
   }, [group]);
+
+  const [athkarInSession, setAthkarInSession] = useState<AthkarInSession[]>(initialAthkarInSession);
+
+  useEffect(() => {
+      setAthkarInSession(initialAthkarInSession);
+  }, [initialAthkarInSession]);
 
 
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
@@ -537,3 +540,5 @@ export default function GroupPage() {
     </div>
   );
 }
+
+    
