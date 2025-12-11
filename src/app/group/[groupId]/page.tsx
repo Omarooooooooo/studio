@@ -187,28 +187,17 @@ export default function GroupPage() {
         if (athkarIndex === -1) return prev;
 
         const currentThikr = prev[athkarIndex];
+        // If already completed in session, do nothing.
+        if (currentThikr.isSessionHidden) return prev;
+
         const targetCount = currentThikr.count || 1;
-        const wasSessionHiddenPriorToThisUpdate = currentThikr.isSessionHidden;
-        
-        let newSessionProgress = currentThikr.sessionProgress;
-        let newIsSessionHidden = currentThikr.isSessionHidden;
-
-        if (!wasSessionHiddenPriorToThisUpdate) {
-            newSessionProgress = Math.min(currentThikr.sessionProgress + 1, targetCount);
-
-            if (newSessionProgress >= targetCount) {
-                newIsSessionHidden = true; 
-                if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-                    updateAthkarLog(currentThikr.arabic, targetCount);
-                    sessionCompletedAthkarIdsRef.current.add(athkarId);
-                }
-            }
-        }
+        const newSessionProgress = Math.min(currentThikr.sessionProgress + 1, targetCount);
+        const isNowCompleted = newSessionProgress >= targetCount;
         
         const updatedAthkar = {
             ...currentThikr,
             sessionProgress: newSessionProgress,
-            isSessionHidden: newIsSessionHidden,
+            isSessionHidden: isNowCompleted,
         };
 
         const updatedAthkarList = [...prev];
@@ -216,7 +205,25 @@ export default function GroupPage() {
         
         return updatedAthkarList;
     });
-  }, [updateAthkarLog]);
+  }, []);
+  
+  // Effect to sync with the permanent log AFTER the state has been updated.
+  useEffect(() => {
+    athkarInSession.forEach(thikr => {
+        const wasCompleted = sessionCompletedAthkarIdsRef.current.has(thikr.id);
+        const isNowCompleted = thikr.isSessionHidden;
+
+        if (isNowCompleted && !wasCompleted) {
+            // The athkar has just been completed
+            updateAthkarLog(thikr.arabic, thikr.count || 1);
+            sessionCompletedAthkarIdsRef.current.add(thikr.id);
+        } else if (!isNowCompleted && wasCompleted) {
+            // The athkar has been "un-completed" (e.g., by decrementing)
+            updateAthkarLog(thikr.arabic, -(thikr.count || 1));
+            sessionCompletedAthkarIdsRef.current.delete(thikr.id);
+        }
+    });
+  }, [athkarInSession, updateAthkarLog]);
 
 
   const handleDecrementCount = useCallback((athkarId: string) => {
@@ -224,23 +231,13 @@ export default function GroupPage() {
       const updatedAthkarList = prev.map(a => {
         if (a.id === athkarId) {
           const newSessionProgress = Math.max(0, a.sessionProgress - 1);
-          const targetCount = a.count || 1;
-          let newIsSessionHiddenForUI = a.isSessionHidden;
-
-          if (a.isSessionHidden && newSessionProgress < targetCount) {
-            newIsSessionHiddenForUI = false; 
-            if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-              updateAthkarLog(a.arabic, -targetCount); // Decrement log
-              sessionCompletedAthkarIdsRef.current.delete(athkarId);
-            }
-          }
-          return { ...a, sessionProgress: newSessionProgress, isSessionHidden: newIsSessionHiddenForUI };
+          return { ...a, sessionProgress: newSessionProgress, isSessionHidden: false };
         }
         return a;
       });
       return updatedAthkarList;
     });
-  }, [updateAthkarLog]);
+  }, []);
 
   const handleToggleComplete = useCallback((athkarId: string) => {
     setAthkarInSession(prev => {
@@ -248,35 +245,22 @@ export default function GroupPage() {
       if (athkarIndex === -1) return prev;
 
       const currentThikr = prev[athkarIndex];
+      // This is for non-countable athkar, count is 1.
       if (currentThikr.count && currentThikr.count > 1) return prev; 
-
-      const wasSessionHiddenPriorToThisToggle = currentThikr.isSessionHidden;
-      const newIsSessionHiddenForUI = !wasSessionHiddenPriorToThisToggle;
-
-      if (newIsSessionHiddenForUI && !wasSessionHiddenPriorToThisToggle) {
-        if (!sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-          updateAthkarLog(currentThikr.arabic, 1); 
-          sessionCompletedAthkarIdsRef.current.add(athkarId);
-        }
-      }
-      else if (!newIsSessionHiddenForUI && wasSessionHiddenPriorToThisToggle) {
-        if (sessionCompletedAthkarIdsRef.current.has(athkarId)) {
-          updateAthkarLog(currentThikr.arabic, -1);
-          sessionCompletedAthkarIdsRef.current.delete(athkarId);
-        }
-      }
+      
+      const isNowCompleted = !currentThikr.isSessionHidden;
 
       const updatedAthkar = {
         ...currentThikr,
-        isSessionHidden: newIsSessionHiddenForUI,
-        sessionProgress: newIsSessionHiddenForUI ? (currentThikr.count || 1) : 0
+        isSessionHidden: isNowCompleted,
+        sessionProgress: isNowCompleted ? 1 : 0
       };
       const updatedAthkarList = [...prev];
       updatedAthkarList[athkarIndex] = updatedAthkar;
 
       return updatedAthkarList;
     });
-  }, [updateAthkarLog]);
+  }, []);
 
   const handleResetAllAthkar = useCallback(() => {
     // Reverse log updates for completed athkar in the current session
@@ -405,7 +389,7 @@ export default function GroupPage() {
             <AthkarList
               athkarList={athkarInSession}
               onToggleComplete={handleToggleComplete}
-              onIncrementCount={handleIncrementCount}
+              onIncrementCount={onIncrementCount}
               onDecrementCount={handleDecrementCount}
               onEditAthkar={openEditAthkarDialog}
               onDeleteAthkar={openDeleteAthkarDialog}
@@ -582,3 +566,4 @@ export default function GroupPage() {
     </div>
   );
 }
+
