@@ -389,7 +389,7 @@ export default function GroupPage() {
             <AthkarList
               athkarList={athkarInSession}
               onToggleComplete={handleToggleComplete}
-              onIncrementCount={onIncrementCount}
+              onIncrementCount={handleIncrementCount}
               onDecrementCount={handleDecrementCount}
               onEditAthkar={openEditAthkarDialog}
               onDeleteAthkar={openDeleteAthkarDialog}
@@ -567,3 +567,5 @@ export default function GroupPage() {
   );
 }
 
+
+    
