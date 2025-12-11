@@ -37,7 +37,7 @@ export default function AthkarLogPage() {
   }, [user, loading, router]);
   
   useEffect(() => {
-    setInitialLoad(user?.uid);
+    setInitialLoad(user?.uid || null);
   }, [setInitialLoad, user]);
   
   const [logEntries, setLogEntries] = useState<LogItem[]>([]);
@@ -187,5 +187,3 @@ export default function AthkarLogPage() {
     </div>
   );
 }
-
-    

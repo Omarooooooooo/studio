@@ -11,8 +11,8 @@ import {
   signInWithPopup,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { useFirestore, useAuth } from '@/firebase/provider';
+import { doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
+import { useAuth } from '@/firebase/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { firebaseApp } from '@/firebase/config';
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -41,7 +42,6 @@ const GoogleIcon = () => (
 export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
-  const firestore = useFirestore();
   const { toast } = useToast();
   
   const [email, setEmail] = useState('');
@@ -50,6 +50,7 @@ export default function LoginPage() {
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         router.push('/');
@@ -61,13 +62,14 @@ export default function LoginPage() {
   }, [auth, router]);
 
   const handleAuthAction = async (action: 'signUp' | 'signIn') => {
+    if (!auth) return;
     setAuthLoading(true);
     try {
+      const firestore = getFirestore(firebaseApp);
       let userCredential;
       if (action === 'signUp') {
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        // Create a new document for the user in Firestore
         await setDoc(doc(firestore, "users", user.uid), {
            groups: [],
            athkarLog: {}
@@ -88,9 +90,11 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!auth) return;
     const provider = new GoogleAuthProvider();
     setAuthLoading(true);
     try {
+      const firestore = getFirestore(firebaseApp);
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
@@ -189,5 +193,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
