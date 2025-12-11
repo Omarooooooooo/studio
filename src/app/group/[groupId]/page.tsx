@@ -65,10 +65,12 @@ export default function GroupPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    setInitialLoad(user?.uid);
+    if(user?.uid) {
+      setInitialLoad(user.uid);
+    }
   }, [setInitialLoad, user]);
 
-  const group = useMemo(() => (groupId ? getGroupById(groupId) : null), [groupId, getGroupById]);
+  const group = useMemo(() => (groupId ? getGroupById(groupId) : null), [groupId, getGroupById, isHydrated]);
   
   const initialAthkarInSession = useMemo(() => {
     if (!group) return [];
@@ -127,7 +129,7 @@ export default function GroupPage() {
     
     handleAddAthkar({
         arabic: newAthkarArabic.trim(),
-        virtue: newAthkarVirtue.trim() || undefined,
+        virtue: (newAthkarVirtue || '').trim() || undefined,
         count: newAthkarCount.trim() ? count : undefined,
         readingTimeSeconds: newAthkarReadingTime.trim() ? readingTime : undefined,
     });
@@ -159,7 +161,7 @@ export default function GroupPage() {
 
     const updatedAthkarData: Partial<Athkar> = {
         arabic: editedAthkarArabic.trim(),
-        virtue: editedAthkarVirtue.trim() || undefined,
+        virtue: (editedAthkarVirtue || '').trim() || undefined,
         count: editedAthkarCount.trim() ? count : undefined,
         readingTimeSeconds: editedAthkarReadingTime.trim() ? readingTime : undefined,
     };

@@ -3,8 +3,16 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, PersistOptions } from 'zustand/middleware';
 import type { AthkarGroup, Athkar, AthkarLogStore, AppState } from '@/types';
 import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
+import { firebaseApp } from '@/firebase/config';
 
 const THEME_STORAGE_KEY = 'athkari-theme';
+let firestoreDb: any = null;
+try {
+  firestoreDb = getFirestore(firebaseApp);
+} catch (e) {
+  console.error("Could not initialize Firestore", e)
+}
+
 
 export const loadInitialTheme = (): 'light' | 'dark' => {
   if (typeof window === 'undefined') {
@@ -23,10 +31,11 @@ type AthkarState = {
   athkarLog: AthkarLogStore;
   theme: 'light' | 'dark';
   isHydrated: boolean; 
+  uid: string | null;
 };
 
 type AthkarActions = {
-  setInitialLoad: (uid?: string) => void;
+  setInitialLoad: (uid: string) => Promise<void>;
   addGroup: (name: string) => void;
   editGroup: (id: string, newName: string) => void;
   deleteGroup: (id: string) => void;
@@ -42,83 +51,68 @@ type AthkarActions = {
   toggleTheme: () => void;
 };
 
-const persistOptions: PersistOptions<AthkarState & AthkarActions, { user: AppState | null }> = {
-  name: 'athkari-storage',
-  storage: {
-    getItem: async (name) => {
-      const str = localStorage.getItem(name);
-      if (!str) return null;
-      const { state, version } = JSON.parse(str);
-      const userState = state as AthkarState & AthkarActions;
-      
-      const uid = userState.getGroupById('user-id')?.name; // A bit hacky way to get uid
-      if (!uid) {
-        return JSON.stringify({ state, version });
-      }
 
-      const db = getFirestore();
-      const docRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(docRef);
+// Debounce function
+const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+  let timeout: NodeJS.Timeout | null = null;
 
-      if (docSnap.exists()) {
-        const firestoreState = docSnap.data() as AppState;
-        return JSON.stringify({
-          state: {
-            ...userState,
-            groups: firestoreState.groups,
-            athkarLog: firestoreState.athkarLog,
-          },
-          version,
-        });
-      } else {
-         return JSON.stringify({ state, version });
-      }
-    },
-    setItem: async (name, value) => {
-      const { state } = JSON.parse(value) as { state: AthkarState };
-      const uid = get().getGroupById('user-id')?.name; // Hacky way to get uid
+  const debounced = (...args: Parameters<F>) => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+    timeout = setTimeout(() => func(...args), waitFor);
+  };
 
-      if (uid) {
-        const db = getFirestore();
-        const docRef = doc(db, 'users', uid);
-        const dataToSave: AppState = {
-          groups: state.groups,
-          athkarLog: state.athkarLog,
-        };
-        await setDoc(docRef, dataToSave, { merge: true });
-      }
-      
-      localStorage.setItem(name, value);
-    },
-    removeItem: (name) => localStorage.removeItem(name),
-  },
-  partialize: (state) => ({ 
-    groups: state.groups, 
-    athkarLog: state.athkarLog 
-  }),
+  return debounced as (...args: Parameters<F>) => void;
 };
 
+const debouncedSaveToFirestore = debounce(async (uid: string, data: AppState) => {
+  if (!uid || !firestoreDb) return;
+  try {
+    const docRef = doc(firestoreDb, 'users', uid);
+    await setDoc(docRef, data, { merge: true });
+  } catch (error) {
+    console.error("Error saving to Firestore:", error);
+  }
+}, 1000); // 1-second debounce
 
-export const useAthkarStore = create<AthkarState & AthkarActions>()(
-  persist(
+
+const useAthkarStore = create<AthkarState & AthkarActions>()(
     (set, get) => ({
       groups: [],
       athkarLog: {},
       theme: 'light', 
       isHydrated: false,
-      setInitialLoad: (uid) => {
-        if (get().isHydrated) return; // Prevent re-hydration
-        
-        // This is a temporary hack to store uid in the store without changing the main state structure much
-        if (uid) {
-            const existingUser = get().groups.find(g => g.id === 'user-id');
-            if (!existingUser) {
-                get().addGroup('user-id'); // This is a dummy group to hold the userId
-                get().editGroup('user-id', uid);
-            }
+      uid: null,
+      setInitialLoad: async (uid) => {
+        if (get().isHydrated && get().uid === uid) return; 
+
+        if (!firestoreDb) {
+            set({ isHydrated: true, theme: loadInitialTheme(), uid });
+            return;
         }
-        
-        set({ isHydrated: true, theme: loadInitialTheme() });
+
+        try {
+            const docRef = doc(firestoreDb, 'users', uid);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const firestoreState = docSnap.data() as AppState;
+                set({ 
+                    groups: firestoreState.groups || [], 
+                    athkarLog: firestoreState.athkarLog || {},
+                    isHydrated: true,
+                    theme: loadInitialTheme(),
+                    uid: uid,
+                });
+            } else {
+                 set({ isHydrated: true, theme: loadInitialTheme(), uid: uid, groups: [], athkarLog: {} });
+            }
+        } catch (error) {
+            console.error("Error loading data from Firestore:", error);
+            set({ isHydrated: true, theme: loadInitialTheme(), uid: uid });
+        }
       },
       addGroup: (name) => {
         const newGroup: AthkarGroup = {
@@ -126,22 +120,31 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
           name: name,
           athkar: [],
         };
-        set((state) => ({ groups: [...state.groups.filter(g => g.id !== 'user-id'), newGroup] }));
+        set((state) => {
+            const newGroups = [...state.groups, newGroup];
+            if (state.uid) debouncedSaveToFirestore(state.uid, { groups: newGroups, athkarLog: state.athkarLog });
+            return { groups: newGroups };
+        });
       },
       editGroup: (id, newName) =>
-        set((state) => ({
-          groups: state.groups.map((g) => (g.id === id ? { ...g, name: newName } : g)),
-        })),
+        set((state) => {
+          const newGroups = state.groups.map((g) => (g.id === id ? { ...g, name: newName } : g));
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: newGroups, athkarLog: state.athkarLog });
+          return { groups: newGroups };
+        }),
       deleteGroup: (id) =>
-        set((state) => ({ groups: state.groups.filter((g) => g.id !== id) })),
+        set((state) => {
+            const newGroups = state.groups.filter((g) => g.id !== id);
+            if (state.uid) debouncedSaveToFirestore(state.uid, { groups: newGroups, athkarLog: state.athkarLog });
+            return { groups: newGroups };
+        }),
       reorderGroups: (startIndex, endIndex) =>
         set((state) => {
-           const userGroup = state.groups.find(g => g.id === 'user-id');
-           const normalGroups = state.groups.filter(g => g.id !== 'user-id');
-           const [removed] = normalGroups.splice(startIndex, 1);
-           normalGroups.splice(endIndex, 0, removed);
-           const finalGroups = userGroup ? [userGroup, ...normalGroups] : normalGroups;
-           return { groups: finalGroups };
+           const reorderedGroups = Array.from(state.groups);
+           const [moved] = reorderedGroups.splice(startIndex, 1);
+           reorderedGroups.splice(endIndex, 0, moved);
+           if (state.uid) debouncedSaveToFirestore(state.uid, { groups: reorderedGroups, athkarLog: state.athkarLog });
+           return { groups: reorderedGroups };
         }),
       getGroupById: (id) => get().groups.find((g) => g.id === id),
       addAthkarToGroup: (groupId, athkarData) => {
@@ -149,16 +152,18 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
           id: Date.now().toString() + Math.random().toString(),
           ...athkarData,
         };
-        set((state) => ({
-          groups: state.groups.map((g) =>
+        set((state) => {
+          const newGroups = state.groups.map((g) =>
             g.id === groupId ? { ...g, athkar: [...g.athkar, newAthkarItem] } : g
-          ),
-        }));
+          );
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: newGroups, athkarLog: state.athkarLog });
+          return { groups: newGroups };
+        });
         return newAthkarItem;
       },
       editAthkarInGroup: (groupId, athkarId, athkarData) =>
-        set((state) => ({
-          groups: state.groups.map((g) =>
+        set((state) => {
+          const newGroups = state.groups.map((g) =>
             g.id === groupId
               ? {
                   ...g,
@@ -167,19 +172,23 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
                   ),
                 }
               : g
-          ),
-        })),
+          );
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: newGroups, athkarLog: state.athkarLog });
+          return { groups: newGroups };
+        }),
       deleteAthkarFromGroup: (groupId, athkarId) =>
-        set((state) => ({
-          groups: state.groups.map((g) =>
+        set((state) => {
+          const newGroups = state.groups.map((g) =>
             g.id === groupId
               ? { ...g, athkar: g.athkar.filter((a) => a.id !== athkarId) }
               : g
-          ),
-        })),
+          );
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: newGroups, athkarLog: state.athkarLog });
+          return { groups: newGroups };
+        }),
       reorderAthkarInGroup: (groupId, startIndex, endIndex) =>
-        set((state) => ({
-          groups: state.groups.map((g) => {
+        set((state) => {
+          const newGroups = state.groups.map((g) => {
             if (g.id === groupId) {
               const reorderedAthkar = Array.from(g.athkar);
               const [moved] = reorderedAthkar.splice(startIndex, 1);
@@ -187,8 +196,10 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
               return { ...g, athkar: reorderedAthkar };
             }
             return g;
-          }),
-        })),
+          });
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: newGroups, athkarLog: state.athkarLog });
+          return { groups: newGroups };
+        }),
       updateAthkarLog: (athkarArabic, amount) =>
         set((state) => {
           const newLog = { ...state.athkarLog };
@@ -197,13 +208,18 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
           if (newLog[athkarArabic] === 0) {
             delete newLog[athkarArabic];
           }
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: state.groups, athkarLog: newLog });
           return { athkarLog: newLog };
         }),
-      clearAthkarLog: () => set({ athkarLog: {} }),
+      clearAthkarLog: () => set((state) => {
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: state.groups, athkarLog: {} });
+          return { athkarLog: {} }
+      }),
       deleteAthkarLogEntry: (athkarArabic) =>
         set((state) => {
           const newLog = { ...state.athkarLog };
           delete newLog[athkarArabic];
+          if (state.uid) debouncedSaveToFirestore(state.uid, { groups: state.groups, athkarLog: newLog });
           return { athkarLog: newLog };
         }),
       toggleTheme: () =>
@@ -215,9 +231,7 @@ export const useAthkarStore = create<AthkarState & AthkarActions>()(
           }
           return { theme: newTheme };
         }),
-    }),
-    persistOptions
-  )
+    })
 );
 
-    
+export { useAthkarStore };

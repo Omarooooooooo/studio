@@ -106,7 +106,9 @@ export default function HomePage() {
   }, [user, loading, router]);
   
   useEffect(() => {
-    setInitialLoad(user?.uid);
+    if(user?.uid) {
+      setInitialLoad(user.uid);
+    }
   }, [setInitialLoad, user]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -164,6 +166,8 @@ export default function HomePage() {
     if (result.destination.index === result.source.index) return;
     reorderGroups(result.source.index, result.destination.index);
   }, [reorderGroups]);
+  
+  const displayGroups = useMemo(() => groups.filter(g => g.id !== 'user-id'), [groups]);
 
   if (loading || !isHydrated || !user) {
     return (
@@ -201,7 +205,7 @@ export default function HomePage() {
         </header>
 
         <main className="w-full max-w-xl flex-grow">
-          {groups.length === 0 ? (
+          {displayGroups.length === 0 ? (
             <div className="text-center text-muted-foreground py-10 text-xl border-2 border-dashed border-border rounded-lg bg-card p-6">
               <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-16 w-16 text-primary mb-4"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"></path><path d="M12 22v-1.5"></path><path d="M12 2.5V4"></path><path d="m4.5 11.5-.9-.9"></path><path d="m20.4 12.4-.9-.9"></path><path d="M2 12h1.5"></path><path d="M20.5 12H22"></path><path d="m4.5 12.5.9.9"></path><path d="m20.4 11.6.9.9"></path></svg>
               <h2 className="text-2xl font-semibold text-foreground mb-3">لا توجد مجموعات أذكار بعد</h2>
@@ -220,7 +224,7 @@ export default function HomePage() {
                     {...providedDroppable.droppableProps}
                     ref={providedDroppable.innerRef}
                   >
-                    {groups.map((group, index) => (
+                    {displayGroups.map((group, index) => (
                       <Draggable key={group.id} draggableId={group.id} index={index}>
                         {(providedDraggable) => (
                           <GroupCardItem

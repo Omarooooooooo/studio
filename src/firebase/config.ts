@@ -14,10 +14,22 @@ const firebaseConfig = {
 };
 
 function createFirebaseApp(config: any): FirebaseApp {
-  if (!getApps().length) {
-    return initializeApp(config);
+  try {
+    if (!getApps().length) {
+      return initializeApp(config);
+    }
+    return getApp();
+  } catch (e) {
+    console.error("Failed to initialize Firebase", e);
+    // Fallback for environments where initializeApp might fail during server-side rendering.
+    // This is a temporary workaround.
+    return {
+      name: "fallback",
+      options: {},
+      automaticDataCollectionEnabled: false,
+      delete: () => Promise.resolve(),
+    } as unknown as FirebaseApp;
   }
-  return getApp();
 }
 
 export const firebaseApp = createFirebaseApp(firebaseConfig);
